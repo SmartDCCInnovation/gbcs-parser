@@ -1,0 +1,118 @@
+/*
+ *
+ * Original copyright holders for the GBCS message parser tool:
+ *
+ * Copyright (c) 2019 Andre B. Oliveira
+ *               2019 Enrique Giraldo
+ *               2019 Cristóbal Borrero
+ *
+ * Copyright for subsequent changes, including porting to NodeJS,
+ * updating for TypeScript and refactor to support unit testing:
+ *
+ * Copyright (c) 2022 Smart DCC Limited
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+import { assert } from 'console'
+import {
+  createDecipheriv,
+  createECDH,
+  createHash,
+  createPrivateKey,
+  createPublicKey,
+  createSecretKey,
+  KeyObject,
+} from 'crypto'
+import { CipherInfo, Context } from './context'
+import { Slice } from './util'
+
+export function decryptPayloadWithKey(
+  cipherInfo: CipherInfo,
+  ciphertextTag: Uint8Array,
+  /* Uint8Array(16) */ aesKey: KeyObject,
+  doneCb: (x: Slice) => void
+) {
+  const iv = new Uint8Array(12)
+  iv.set(cipherInfo.origSysTitle, 0)
+  iv.set([0, 0, 0, 0], 8)
+
+  const decipher = createDecipheriv('aes-128-gcm', aesKey, iv)
+  decipher.setAAD(new Uint8Array([0x31]))
+  decipher.setAuthTag(ciphertextTag.subarray(-12))
+  const plaintext = decipher.update(ciphertextTag.subarray(0, -12))
+  decipher.final()
+  const yy: Slice = {
+    input: new Uint8Array(plaintext),
+    index: 0,
+    end: plaintext.byteLength,
+  }
+  doneCb(yy)
+}
+
+export function deriveKeyFromPair(
+  privkey: string | KeyObject,
+  pubkey: string | KeyObject,
+  cipherInfo: CipherInfo
+) {
+  if (typeof privkey === 'string') {
+    privkey = createPrivateKey({ key: privkey, format: 'pem' })
+  }
+
+  if (typeof pubkey === 'string') {
+    pubkey = createPublicKey({ key: pubkey, format: 'pem' })
+  }
+
+  assert(privkey.asymmetricKeyType === 'ec', 'expected ec private key')
+  assert(pubkey.asymmetricKeyType === 'ec', 'expected ec public key')
+
+  const privEcKey = privkey
+    .export({ type: 'sec1', format: 'der' })
+    .subarray(7, 7 + 32)
+  const pubEcKey = pubkey.export({ type: 'spki', format: 'der' }).subarray(-65)
+
+  const ecdh = createECDH('prime256v1')
+  ecdh.setPrivateKey(privEcKey)
+  const secret = ecdh.computeSecret(pubEcKey)
+
+  const otherInfo = new Uint8Array(33)
+  otherInfo.set([0x60, 0x85, 0x74, 0x06, 0x08, 0x03, 0x00], 0) // algorithm-id
+  otherInfo.set(cipherInfo.origSysTitle, 7)
+  otherInfo.set([0x09, 0x04], 7 + 8)
+  otherInfo.set(cipherInfo.origCounter, 7 + 8 + 2)
+  otherInfo.set(cipherInfo.recipSysTitle, 7 + 8 + 2 + 8)
+
+  const data = new Uint8Array(4 + secret.byteLength + otherInfo.byteLength)
+  data.set([0, 0, 0, 1], 0)
+  data.set(secret, 4)
+  data.set(otherInfo, 4 + secret.byteLength)
+
+  const sha256 = createHash('sha256')
+  sha256.update(new Uint8Array([0, 0, 0, 1]))
+  sha256.update(secret)
+  sha256.update(otherInfo)
+
+  const aesKey = sha256.digest().subarray(0, 16)
+  return createSecretKey(aesKey)
+}
+
+export function decryptGbcsData(
+  ctx: Context,
+  ciphertextAndTag: Uint8Array,
+  okCallback: (x: Slice) => void
+) {
+  ctx.decryptionList.push(function (cipherInfo: CipherInfo, aesKey: KeyObject) {
+    decryptPayloadWithKey(cipherInfo, ciphertextAndTag, aesKey, okCallback)
+  })
+}
