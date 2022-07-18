@@ -73,7 +73,11 @@ export function parseCounter(ctx: Context, name: string, x: Slice) {
   putBytes(ctx, name, bytes, getDecimalString(bytes))
 }
 
-export function parseMeterIntegrityIssueWarning(ctx: Context, x: Slice) {
+export function parseMeterIntegrityIssueWarning(
+  ctx: Context,
+  x: Slice,
+  indent: string
+) {
   const otherInfo = parseNumber(x, 2)
   const names: Record<number, string> = {
     0x0000: 'Other',
@@ -87,14 +91,14 @@ export function parseMeterIntegrityIssueWarning(ctx: Context, x: Slice) {
     0x0008: 'Error Measurement Fault',
     0x0009: 'Unspecified Smart Meter Operational Integrity Error',
   }
-  putBytes(ctx, 'Other Info', getBytes(x, 2), names[otherInfo])
+  putBytes(ctx, `${indent}Other Info`, getBytes(x, 2), names[otherInfo])
 }
 
-export function parseCraFlag(ctx: Context, x: Slice) {
+export function parseCraFlag(ctx: Context, x: Slice, indent: string) {
   const craFlag = x.input[x.index]
   putBytes(
     ctx,
-    'CRA Flag',
+    `${indent}CRA Flag`,
     getBytes(x, 1),
     { 1: 'Command', 2: 'Response', 3: 'Alert' }[craFlag] || 'INVALID'
   )

@@ -80,7 +80,7 @@ export function parseGbzMeterIntegrityIssueWarningAlert(
   parseGbzAlertCode(ctx, x)
   parseGbzTime(ctx, x, 'Time Stamp')
   putBytes(ctx, 'GBZ Use Case Specific Components', getBytes(x, 0))
-  parseMeterIntegrityIssueWarning(ctx, x)
+  parseMeterIntegrityIssueWarning(ctx, x, ' ')
 }
 
 export function parseGbzFutureDatedAlertPayload(ctx: Context, x: Slice) {
@@ -94,7 +94,7 @@ export function parseGbzFutureDatedAlertPayload(ctx: Context, x: Slice) {
   const cluster = parseClusterId(ctx, x)
   const frameControl = x.input[x.index]
   putBytes(ctx, 'Frame Control', getBytes(x, 1))
-  parseCommandId(ctx, x, frameControl, cluster)
+  parseCommandId(ctx, x, '', frameControl, cluster)
 }
 
 export function parseGbzFirmwareDistributionReceiptAlert(
@@ -133,52 +133,46 @@ function parseGbzComponent(ctx: Context, x: Slice) {
   const extendedLen = parseNumber(x, 2)
   putBytes(ctx, 'Length', getBytes(x, 2), String(extendedLen))
   const y = getBytes(x, extendedLen)
-  try {
-    if (controlField & 0x02) {
-      // encrypted content
-      putBytes(ctx, 'Additional Header Control', getBytes(y, 1))
-      putBytes(ctx, 'Additional Header Frame Counter', getBytes(y, 1))
-    } else if (controlField & 0x10) {
-      parseGbzTime(ctx, y, 'From Date Time')
-    }
-    // ZCL Header
-    const frameControl = y.input[y.index]
-    putBytes(ctx, 'Frame Control', getBytes(y, 1))
-    putBytes(ctx, 'Sequence Number', getBytes(y, 1))
-    const command = parseCommandId(ctx, y, frameControl, cluster)
-    if (controlField & 0x02) {
-      // encrypted payload
-      const len = parseNumber(y, 2)
-      putBytes(ctx, 'Ciphered Information Length', getBytes(y, 2), String(len))
-      putBytes(ctx, 'Security Header', getBytes(y, 5))
-      const ciphertextAndTag = y.input.subarray(y.index, y.index + len - 5)
-      putBytes(
-        ctx,
-        'Encrypted ZCL Payload',
-        getBytes(y, len - 5 - 12)
-        //getDecryptLink()
-      )
-      putBytes(ctx, 'AE MAC', getBytes(y, 12))
+  if (controlField & 0x02) {
+    // encrypted content
+    putBytes(ctx, 'Additional Header Control', getBytes(y, 1))
+    putBytes(ctx, 'Additional Header Frame Counter', getBytes(y, 1))
+  } else if (controlField & 0x10) {
+    parseGbzTime(ctx, y, 'From Date Time')
+  }
+  // ZCL Header
+  const frameControl = y.input[y.index]
+  putBytes(ctx, 'ZCL Header', getBytes(y, 0))
+  putBytes(ctx, ' Frame Control', getBytes(y, 1))
+  putBytes(ctx, ' Sequence Number', getBytes(y, 1))
+  const command = parseCommandId(ctx, y, ' ', frameControl, cluster)
+  if (controlField & 0x02) {
+    // encrypted payload
+    const len = parseNumber(y, 2)
+    putBytes(ctx, 'Ciphered Information Length', getBytes(y, 2), String(len))
+    putBytes(ctx, 'Security Header', getBytes(y, 5))
+    const ciphertextAndTag = y.input.subarray(y.index, y.index + len - 5)
+    putBytes(ctx, 'Encrypted ZCL Payload', getBytes(y, len - 5 - 12))
+    putBytes(ctx, 'AE MAC', getBytes(y, 12))
 
-      decryptGbcsData(ctx, ciphertextAndTag, function (yy) {
-        if (command && command.parse) {
-          command.parse({ ctx, x: yy, cluster, frameControl })
-        } else {
-          putBytes(ctx, 'ZCL Payload', yy)
-        }
-        putUnparsedBytes(yy)
-      })
-    } else {
-      // plaintext payload
+    decryptGbcsData(ctx, ciphertextAndTag, function (yy) {
       if (command && command.parse) {
-        command.parse({ ctx, x: y, cluster, frameControl })
+        putBytes(ctx, 'ZCL Payload', getBytes(x, 0), command.name)
+        command.parse({ ctx, x: yy, cluster, frameControl, indent: ' ' })
       } else {
-        putBytes(ctx, 'ZCL Payload', y)
+        putBytes(ctx, 'ZCL Payload', yy)
       }
-      putUnparsedBytes(y)
+      putUnparsedBytes(yy)
+    })
+  } else {
+    // plaintext payload
+    if (command && command.parse) {
+      putBytes(ctx, 'ZCL Payload', getBytes(x, 0), command.name)
+      command.parse({ ctx, x: y, cluster, frameControl, indent: ' ' })
+    } else {
+      putBytes(ctx, 'ZCL Payload', y)
     }
-  } catch (error) {
-    putBytes(ctx, 'ERROR', y, String(error))
+    putUnparsedBytes(y)
   }
 }
 
@@ -187,6 +181,7 @@ interface ZclParseOptions {
   x: Slice
   cluster: ZclCluster
   frameControl: number
+  indent: string
 }
 type ZclParse = (options: ZclParseOptions) => void
 
@@ -357,6 +352,7 @@ function parseClusterId(ctx: Context, x: Slice) {
       name: 'Calendar',
       attributes: {},
       commands: {
+        0: ['Get Calendar', parseZclNoop],
         1: ['Get Day Profiles', parseZseGetDayProfiles],
         2: ['Get Week Profiles', parseZseGetWeekProfiles],
         3: ['Get Seasons', parseZseGetSeasons],
@@ -416,6 +412,7 @@ function parseClusterId(ctx: Context, x: Slice) {
 function parseCommandId(
   ctx: Context,
   x: Slice,
+  indent: string,
   frameControl: number,
   cluster: ZclCluster
 ) {
@@ -441,63 +438,73 @@ function parseCommandId(
     throw new Error('unable to parse command id')
   }
   const name = command[0]
-  putBytes(ctx, 'Command Id', getBytes(x, 1), name)
+  putBytes(ctx, `${indent}Command Id`, getBytes(x, 1), name)
   return { name: command[0], parse: command[1] }
 }
 
 // ZCL commands
 
-function parseZclReadAttributes({ ctx, x, cluster }: ZclParseOptions) {
+const parseZclNoop: (x: ZclParseOptions) => void = () => undefined
+
+function parseZclReadAttributes({ ctx, x, cluster, indent }: ZclParseOptions) {
+  let ctr = 0
   while (x.index < x.end) {
     const id = parseNumberLE(x, 2)
     const name = cluster.attributes[id] || ''
-    putBytes(ctx, 'Attribute Id', getBytes(x, 2), name)
+    putBytes(ctx, `${indent}Attribute Id ${ctr}`, getBytes(x, 2), name)
+    ctr++
   }
 }
 
-function parseZclReadAttributesResponse({ ctx, x, cluster }: ZclParseOptions) {
+function parseZclReadAttributesResponse({
+  ctx,
+  x,
+  cluster,
+  indent,
+}: ZclParseOptions) {
   for (let i = 1; x.index < x.end; i++) {
-    putSeparator(ctx, 'Attribute ' + i)
+    putBytes(ctx, `${indent}Attribute ${i}`, getBytes(x, 0))
+    const indent2 = ' ' + indent
     const id = parseNumberLE(x, 2)
     const name = cluster.attributes[id] || ''
-    putBytes(ctx, 'Attribute Id', getBytes(x, 2), name)
-    const status = parseZclStatusCode(ctx, x)
+    putBytes(ctx, `${indent2}Attribute Id`, getBytes(x, 2), name)
+    const status = parseZclStatusCode(ctx, x, indent2)
     if (status === 0) {
-      const typeName = 'Attribute Data Type'
-      const valueName = 'Attribute Data Value'
+      const typeName = `${indent2}Attribute Data Type`
+      const valueName = `${indent2}Attribute Data Value`
       const type = x.input[x.index]
       if (type === 0x18) {
-        putBytes(ctx, typeName, getBytes(x, 1), 'BITMAP8')
+        putBytes(ctx, typeName, getBytes(x, 1), `BITMAP8`)
         parseZclBitmap(ctx, 8, x, valueName)
       } else if (type === 0x19) {
-        putBytes(ctx, typeName, getBytes(x, 1), 'BITMAP16')
+        putBytes(ctx, typeName, getBytes(x, 1), `BITMAP16`)
         parseZclBitmap(ctx, 16, x, valueName)
       } else if (type === 0x20) {
-        putBytes(ctx, typeName, getBytes(x, 1), 'UINT8')
+        putBytes(ctx, typeName, getBytes(x, 1), `UINT8`)
         parseZclUint(ctx, 8, x, valueName)
       } else if (type === 0x21) {
-        putBytes(ctx, typeName, getBytes(x, 1), 'UINT16')
+        putBytes(ctx, typeName, getBytes(x, 1), `UINT16`)
         parseZclUint(ctx, 16, x, valueName)
       } else if (type === 0x22) {
-        putBytes(ctx, typeName, getBytes(x, 1), 'UINT24')
+        putBytes(ctx, typeName, getBytes(x, 1), `UINT24`)
         parseZclUint(ctx, 24, x, valueName)
       } else if (type === 0x23) {
-        putBytes(ctx, typeName, getBytes(x, 1), 'UINT32')
+        putBytes(ctx, typeName, getBytes(x, 1), `UINT32`)
         parseZclUint(ctx, 32, x, valueName)
       } else if (type === 0x25) {
-        putBytes(ctx, typeName, getBytes(x, 1), 'UINT48')
+        putBytes(ctx, typeName, getBytes(x, 1), `UINT48`)
         parseZclUint(ctx, 48, x, valueName)
       } else if (type === 0x2b) {
-        putBytes(ctx, typeName, getBytes(x, 1), 'INT32')
+        putBytes(ctx, typeName, getBytes(x, 1), `INT32`)
         parseZclInt32(ctx, x, valueName)
       } else if (type === 0x30) {
-        putBytes(ctx, typeName, getBytes(x, 1), 'ENUM8')
+        putBytes(ctx, typeName, getBytes(x, 1), `ENUM8`)
         parseZclEnum(ctx, 8, x, valueName)
       } else if (type === 0x41) {
-        putBytes(ctx, typeName, getBytes(x, 1), 'Octet String')
+        putBytes(ctx, typeName, getBytes(x, 1), `Octet String`)
         parseZclOctetString(ctx, x, valueName)
       } else if (type === 0x42) {
-        putBytes(ctx, typeName, getBytes(x, 1), 'Character String')
+        putBytes(ctx, typeName, getBytes(x, 1), `Character String`)
         parseZclOctetString(ctx, x, valueName)
       } else {
         throw 'TODO: Read Attributes Response data type ' + type
@@ -511,6 +518,7 @@ function parseZclDefaultResponse({
   x,
   cluster,
   frameControl,
+  indent,
 }: ZclParseOptions) {
   let command: [string, ZclParse] | undefined = undefined
   const commandId = x.input[x.index]
@@ -521,318 +529,331 @@ function parseZclDefaultResponse({
     command = cluster.commands[commandId]
   }
   const name = (command && command[0]) || ''
-  putBytes(ctx, 'Command Id', getBytes(x, 1), name)
-  parseZclStatusCode(ctx, x)
+  putBytes(ctx, `${indent}Command Id`, getBytes(x, 1), name)
+  parseZclStatusCode(ctx, x, indent)
 }
 
 // ZSE Price Cluster
 
-function parseZseGetCurrentPrice({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 8, x, 'Command Options')
+function parseZseGetCurrentPrice({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 8, x, `${indent}Command Options`)
 }
 
-function parseZseGetBillingPeriod({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Earliest Start Time')
-  parseZclUint(ctx, 32, x, 'Minimum Issuer Event Id')
-  parseZclUint(ctx, 8, x, 'Number of Commands')
-  parseZclBitmap(ctx, 8, x, 'Tariff Type')
+function parseZseGetBillingPeriod({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Earliest Start Time`)
+  parseZclUint(ctx, 32, x, `${indent}Minimum Issuer Event Id`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Commands`)
+  parseZclBitmap(ctx, 8, x, `${indent}Tariff Type`)
 }
 
-function parseZsePublishPrice({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclOctetString(ctx, x, 'Rate Label')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Current Time')
-  parseZclEnum(ctx, 8, x, 'Unit of Measure', { 0: 'kWh' })
-  parseZclUint(ctx, 16, x, 'Currency', { 826: 'GBP', 978: 'Euro' })
-  parseZclBitmap(ctx, 8, x, 'Price Trailing Digit and Price Tier')
-  parseZclBitmap(ctx, 8, x, 'Number of Price Tiers and Register Tier')
-  parseZclUtcTime(ctx, x, 'Start Time')
-  parseZclUint(ctx, 16, x, 'Duration in Minutes')
-  parseZclUint(ctx, 32, x, 'Price')
+function parseZsePublishPrice({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclOctetString(ctx, x, `${indent}Rate Label`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Current Time`)
+  parseZclEnum(ctx, 8, x, `${indent}Unit of Measure`, { 0: 'kWh' })
+  parseZclUint(ctx, 16, x, `${indent}Currency`, { 826: 'GBP', 978: 'Euro' })
+  parseZclBitmap(ctx, 8, x, `${indent}Price Trailing Digit and Price Tier`)
+  parseZclBitmap(ctx, 8, x, `${indent}Number of Price Tiers and Register Tier`)
+  parseZclUtcTime(ctx, x, `${indent}Start Time`)
+  parseZclUint(ctx, 16, x, `${indent}Duration in Minutes`)
+  parseZclUint(ctx, 32, x, `${indent}Price`)
   // NOTE: the Response may contain an additional 19 octets after this
   // parameter. Those 19 octets do not contain meaningful information
   // and so, if present, should be ignored by all parties
   if (x.end - x.index === 19) {
-    putBytes(ctx, 'Meaningless Information', x)
+    putBytes(ctx, `${indent}Meaningless Information`, x)
   }
 }
 
-function parseZsePublishBlockPeriod({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Block Period Start Time')
-  parseZclUint(ctx, 24, x, 'Block Period Duration')
-  parseZclBitmap(ctx, 8, x, 'Block Period Control')
-  parseZclBitmap(ctx, 8, x, 'Block Period Duration Type')
-  parseZclBitmap(ctx, 8, x, 'Tariff Type')
-  parseZclEnum(ctx, 8, x, 'Tariff Resolution Period')
+function parseZsePublishBlockPeriod({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Block Period Start Time`)
+  parseZclUint(ctx, 24, x, `${indent}Block Period Duration`)
+  parseZclBitmap(ctx, 8, x, `${indent}Block Period Control`)
+  parseZclBitmap(ctx, 8, x, `${indent}Block Period Duration Type`)
+  parseZclBitmap(ctx, 8, x, `${indent}Tariff Type`)
+  parseZclEnum(ctx, 8, x, `${indent}Tariff Resolution Period`)
 }
 
-function parseZsePublishConversionFactor({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Start Time')
-  parseZclUint(ctx, 32, x, 'Conversion Factor')
-  parseZclBitmap(ctx, 8, x, 'Conversion Factor Trailing Digit')
+function parseZsePublishConversionFactor({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Start Time`)
+  parseZclUint(ctx, 32, x, `${indent}Conversion Factor`)
+  parseZclBitmap(ctx, 8, x, `${indent}Conversion Factor Trailing Digit`)
 }
 
-function parseZsePublishCalorificValue({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Start Time')
-  parseZclUint(ctx, 32, x, 'Calorific Value')
-  parseZclEnum(ctx, 8, x, 'Calorific Value Unit')
-  parseZclBitmap(ctx, 8, x, 'Calorific Value Trailing Digit')
+function parseZsePublishCalorificValue({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Start Time`)
+  parseZclUint(ctx, 32, x, `${indent}Calorific Value`)
+  parseZclEnum(ctx, 8, x, `${indent}Calorific Value Unit`)
+  parseZclBitmap(ctx, 8, x, `${indent}Calorific Value Trailing Digit`)
 }
 
-function parseZsePublishTariffInformation({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUint(ctx, 32, x, 'Issuer Tariff Id')
-  parseZclUtcTime(ctx, x, 'Start Time')
-  parseZclBitmap(ctx, 8, x, 'Tariff Type / Charging Scheme', {
+function parseZsePublishTariffInformation({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUint(ctx, 32, x, `${indent}Issuer Tariff Id`)
+  parseZclUtcTime(ctx, x, `${indent}Start Time`)
+  parseZclBitmap(ctx, 8, x, `${indent}Tariff Type / Charging Scheme`, {
     0x00: 'TOU Tariff / Delivered Tariff',
     0x10: 'Block Tariff / Delivered Tariff',
   })
-  parseZclOctetString(ctx, x, 'Tariff Label')
-  parseZclUint(ctx, 8, x, 'Number of Price Tiers in Use')
-  parseZclUint(ctx, 8, x, 'Number of Block Thresholds in Use')
-  parseZclEnum(ctx, 8, x, 'Unit of Measure', { 0: 'kWh' })
-  parseZclUint(ctx, 16, x, 'Currency', { 826: 'GBP', 978: 'Euro' })
-  parseZclBitmap(ctx, 8, x, 'Price Trailing Digit')
-  parseZclUint(ctx, 32, x, 'Standing Charge')
-  parseZclUint(ctx, 8, x, 'Tier Block Mode')
-  parseZclUint(ctx, 24, x, 'Block Threshold Multiplier')
-  parseZclUint(ctx, 24, x, 'Block Threshold Divisor')
+  parseZclOctetString(ctx, x, `${indent}Tariff Label`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Price Tiers in Use`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Block Thresholds in Use`)
+  parseZclEnum(ctx, 8, x, `${indent}Unit of Measure`, { 0: 'kWh' })
+  parseZclUint(ctx, 16, x, `${indent}Currency`, { 826: 'GBP', 978: 'Euro' })
+  parseZclBitmap(ctx, 8, x, `${indent}Price Trailing Digit`)
+  parseZclUint(ctx, 32, x, `${indent}Standing Charge`)
+  parseZclUint(ctx, 8, x, `${indent}Tier Block Mode`)
+  parseZclUint(ctx, 24, x, `${indent}Block Threshold Multiplier`)
+  parseZclUint(ctx, 24, x, `${indent}Block Threshold Divisor`)
 }
 
-function parseZsePublishPriceMatrix({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Start Time')
-  parseZclUint(ctx, 32, x, 'Issuer Tariff Id')
-  parseZclUint(ctx, 8, x, 'Command Index')
-  parseZclUint(ctx, 8, x, 'Number of Commands')
-  parseZclBitmap(ctx, 8, x, 'Sub-payload Control', {
+function parseZsePublishPriceMatrix({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Start Time`)
+  parseZclUint(ctx, 32, x, `${indent}Issuer Tariff Id`)
+  parseZclUint(ctx, 8, x, `${indent}Command Index`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Commands`)
+  parseZclBitmap(ctx, 8, x, `${indent}Sub-payload Control`, {
     0: 'Block or Block/TOU',
     1: 'TOU',
   })
   for (let i = 1; x.index < x.end; i++) {
-    parseZclUint(ctx, 8, x, 'Tier / Block Id ' + i)
-    parseZclUint(ctx, 32, x, 'Price ' + i)
+    parseZclUint(ctx, 8, x, `${indent}Tier / Block Id ` + i)
+    parseZclUint(ctx, 32, x, `${indent}Price ` + i)
   }
 }
 
-function parseZsePublishBlockThresholds({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Start Time')
-  parseZclUint(ctx, 32, x, 'Issuer Tariff Id')
-  parseZclUint(ctx, 8, x, 'Command Index')
-  parseZclUint(ctx, 8, x, 'Number of Commands')
-  parseZclBitmap(ctx, 8, x, 'Sub-payload Control', {
+function parseZsePublishBlockThresholds({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Start Time`)
+  parseZclUint(ctx, 32, x, `${indent}Issuer Tariff Id`)
+  parseZclUint(ctx, 8, x, `${indent}Command Index`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Commands`)
+  parseZclBitmap(ctx, 8, x, `${indent}Sub-payload Control`, {
     1: 'Block thresholds apply to all TOU tiers / block only charging in operation',
   })
-  const n = parseZclUint(ctx, 8, x, 'Number of Block Thresholds')
+  const n = parseZclUint(ctx, 8, x, `${indent}Number of Block Thresholds`)
   for (let i = 1; i <= n; i++) {
-    parseZclUint(ctx, 48, x, 'Block Threshold ' + i)
+    parseZclUint(ctx, 48, x, `${indent}Block Threshold ${i}`)
   }
 }
 
-function parseZsePublishBillingPeriod({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Billing Period Start Time')
-  parseZclUint(ctx, 24, x, 'Billing Period Duration')
-  parseZclUint(ctx, 8, x, 'Billing Period Duration Type')
-  parseZclUint(ctx, 8, x, 'Tariff Type')
+function parseZsePublishBillingPeriod({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Billing Period Start Time`)
+  parseZclUint(ctx, 24, x, `${indent}Billing Period Duration`)
+  parseZclUint(ctx, 8, x, `${indent}Billing Period Duration Type`)
+  parseZclUint(ctx, 8, x, `${indent}Tariff Type`)
 }
 
 // ZSE Metering Cluster
 
-function parseZseGetSnapshot({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Earliest Start Time')
-  parseZclUtcTime(ctx, x, 'Latest End Time')
-  parseZclUint(ctx, 8, x, 'Snapshot Offset')
-  parseZclBitmap(ctx, 32, x, 'Snapshot Cause')
+function parseZseGetSnapshot({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Earliest Start Time`)
+  parseZclUtcTime(ctx, x, `${indent}Latest End Time`)
+  parseZclUint(ctx, 8, x, `${indent}Snapshot Offset`)
+  parseZclBitmap(ctx, 32, x, `${indent}Snapshot Cause`)
 }
 
-function parseZseStartSampling({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Start Sampling Time')
-  parseZclEnum(ctx, 8, x, 'Sample Type')
-  parseZclUint(ctx, 16, x, 'Sample Request Interval')
-  parseZclUint(ctx, 16, x, 'Max Number of Samples')
+function parseZseStartSampling({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Start Sampling Time`)
+  parseZclEnum(ctx, 8, x, `${indent}Sample Type`)
+  parseZclUint(ctx, 16, x, `${indent}Sample Request Interval`)
+  parseZclUint(ctx, 16, x, `${indent}Max Number of Samples`)
 }
 
-function parseZseGetSampledData({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 16, x, 'Sample Id')
-  parseZclUtcTime(ctx, x, 'Earliest Sample Time')
-  parseZclEnum(ctx, 8, x, 'Sample Type')
-  parseZclUint(ctx, 16, x, 'Number of Samples')
+function parseZseGetSampledData({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 16, x, `${indent}Sample Id`)
+  parseZclUtcTime(ctx, x, `${indent}Earliest Sample Time`)
+  parseZclEnum(ctx, 8, x, `${indent}Sample Type`)
+  parseZclUint(ctx, 16, x, `${indent}Number of Samples`)
 }
 
-function parseZseChangeSupply({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Request Date Time')
-  parseZclUtcTime(ctx, x, 'Implementation Date Time')
-  parseZclEnum(ctx, 8, x, 'Proposed Supply Status')
-  parseZclBitmap(ctx, 8, x, 'Supply Control Bits')
+function parseZseChangeSupply({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Request Date Time`)
+  parseZclUtcTime(ctx, x, `${indent}Implementation Date Time`)
+  parseZclEnum(ctx, 8, x, `${indent}Proposed Supply Status`)
+  parseZclBitmap(ctx, 8, x, `${indent}Supply Control Bits`)
 }
 
-function parseZseSetSupplyStatus({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclEnum(ctx, 8, x, 'Supply Tamper State')
-  parseZclEnum(ctx, 8, x, 'Supply Depletion State')
-  parseZclEnum(ctx, 8, x, 'Supply Uncontrolled Flow State')
-  parseZclEnum(ctx, 8, x, 'Low Limit Supply State')
+function parseZseSetSupplyStatus({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclEnum(ctx, 8, x, `${indent}Supply Tamper State`)
+  parseZclEnum(ctx, 8, x, `${indent}Supply Depletion State`)
+  parseZclEnum(ctx, 8, x, `${indent}Supply Uncontrolled Flow State`)
+  parseZclEnum(ctx, 8, x, `${indent}Low Limit Supply State`)
 }
 
-function parseZseSetUncontrolledFlowThreshold({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUint(ctx, 16, x, 'Uncontrolled Flow Threshold')
-  parseZclEnum(ctx, 8, x, 'Unit of Measure', { 0: 'kWh' })
-  parseZclUint(ctx, 16, x, 'Multiplier')
-  parseZclUint(ctx, 16, x, 'Divisor')
-  parseZclUint(ctx, 8, x, 'Stabilisation Period')
-  parseZclUint(ctx, 16, x, 'Measurement Period')
+function parseZseSetUncontrolledFlowThreshold({
+  ctx,
+  x,
+  indent,
+}: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUint(ctx, 16, x, `${indent}Uncontrolled Flow Threshold`)
+  parseZclEnum(ctx, 8, x, `${indent}Unit of Measure`, { 0: 'kWh' })
+  parseZclUint(ctx, 16, x, `${indent}Multiplier`)
+  parseZclUint(ctx, 16, x, `${indent}Divisor`)
+  parseZclUint(ctx, 8, x, `${indent}Stabilisation Period`)
+  parseZclUint(ctx, 16, x, `${indent}Measurement Period`)
 }
 
-function parseZsePublishPrepaySnapshot({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Snapshot Id')
-  parseZclUtcTime(ctx, x, 'Snapshot Time')
-  parseZclUint(ctx, 8, x, 'Snapshots Found')
-  parseZclUint(ctx, 8, x, 'Command Index')
-  parseZclUint(ctx, 8, x, 'Number of Commands')
-  parseZclBitmap(ctx, 32, x, 'Snapshot Cause')
-  parseZclEnum(ctx, 8, x, 'Snapshot Payload Type')
-  putBytes(ctx, 'Snapshot Sub-payload', getBytes(x, 0))
+function parseZsePublishPrepaySnapshot({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Snapshot Id`)
+  parseZclUtcTime(ctx, x, `${indent}Snapshot Time`)
+  parseZclUint(ctx, 8, x, `${indent}Snapshots Found`)
+  parseZclUint(ctx, 8, x, `${indent}Command Index`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Commands`)
+  parseZclBitmap(ctx, 32, x, `${indent}Snapshot Cause`)
+  parseZclEnum(ctx, 8, x, `${indent}Snapshot Payload Type`)
+  putBytes(ctx, `${indent}Snapshot Sub-payload`, getBytes(x, 0))
   // ZSE Accumulated Debt = SMETS Accumulated Debt Register; ZSE Type 1 Debt Remaining = SMETS Time Debt Registers [1]; ZSE Type 2 Debt Remaining = SMETS Time Debt Registers [2]; ZSE Type 3 Debt Remaining = SMETS Payment Debt Register; ZSE Emergency Credit Remaining = SMETS Emergency Credit Balance; ZSE Credit Remaining = SMETS Meter Balance
-  parseZclInt32(ctx, x, ' Accumulated Debt Register')
-  parseZclUint(ctx, 32, x, ' Time Debt Registers [1]')
-  parseZclUint(ctx, 32, x, ' Time Debt Registers [2]')
-  parseZclUint(ctx, 32, x, ' Payment Debt Register')
-  parseZclUint(ctx, 32, x, ' Emergency Credit Balance')
-  parseZclUint(ctx, 32, x, ' Meter Balance')
+  parseZclInt32(ctx, x, `${indent} Accumulated Debt Register`)
+  parseZclUint(ctx, 32, x, `${indent} Time Debt Registers [1]`)
+  parseZclUint(ctx, 32, x, `${indent} Time Debt Registers [2]`)
+  parseZclUint(ctx, 32, x, `${indent} Payment Debt Register`)
+  parseZclUint(ctx, 32, x, `${indent} Emergency Credit Balance`)
+  parseZclUint(ctx, 32, x, `${indent} Meter Balance`)
 }
 
-function parseZsePublishSnapshot({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Snapshot Id')
-  parseZclUtcTime(ctx, x, 'Snapshot Time')
-  parseZclUint(ctx, 8, x, 'Snapshots Found')
-  parseZclUint(ctx, 8, x, 'Command Index')
-  parseZclUint(ctx, 8, x, 'Number of Commands')
-  parseZclBitmap(ctx, 32, x, 'Snapshot Cause')
-  parseZclEnum(ctx, 8, x, 'Snapshot Payload Type') // 6
-  putBytes(ctx, 'Snapshot Sub-payload', getBytes(x, 0))
-  parseZclUint(ctx, 48, x, ' Current Summation Delivered')
-  parseZclUint(ctx, 8, x, ' Number of Tiers in Use')
+function parseZsePublishSnapshot({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Snapshot Id`)
+  parseZclUtcTime(ctx, x, `${indent}Snapshot Time`)
+  parseZclUint(ctx, 8, x, `${indent}Snapshots Found`)
+  parseZclUint(ctx, 8, x, `${indent}Command Index`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Commands`)
+  parseZclBitmap(ctx, 32, x, `${indent}Snapshot Cause`)
+  parseZclEnum(ctx, 8, x, `${indent}Snapshot Payload Type`) // 6
+  putBytes(ctx, `${indent}Snapshot Sub-payload`, getBytes(x, 0))
+  parseZclUint(ctx, 48, x, `${indent} Current Summation Delivered`)
+  parseZclUint(ctx, 8, x, `${indent} Number of Tiers in Use`)
   for (let i = 0; i < 4; i++) {
-    parseZclUint(ctx, 48, x, ' Tariff TOU Register Matrix [' + (i + 1) + ']')
+    parseZclUint(ctx, 48, x, `${indent} Tariff TOU Register Matrix [${i + 1}]`)
   }
-  parseZclBitmap(ctx, 8, x, ' Number of Tiers and Block Thresholds in Use')
+  parseZclBitmap(
+    ctx,
+    8,
+    x,
+    `${indent} Number of Tiers and Block Thresholds in Use`
+  )
   for (let i = 0; i < 4; i++) {
     parseZclUint(
       ctx,
       48,
       x,
-      ' Tariff TOU Block Counter Matrix [' + (i + 1) + ']'
+      `${indent} Tariff TOU Block Counter Matrix [${i + 1}]`
     )
   }
 }
 
-function parseZseGetSampledDataResponse({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 16, x, 'Sample Id')
-  parseZclUtcTime(ctx, x, 'Sample Start Time')
-  parseZclEnum(ctx, 8, x, 'Sample Type')
-  parseZclUint(ctx, 16, x, 'Sample Request Interval')
-  const n = parseZclUint(ctx, 16, x, 'Number of Samples')
+function parseZseGetSampledDataResponse({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 16, x, `${indent}Sample Id`)
+  parseZclUtcTime(ctx, x, `${indent}Sample Start Time`)
+  parseZclEnum(ctx, 8, x, `${indent}Sample Type`)
+  parseZclUint(ctx, 16, x, `${indent}Sample Request Interval`)
+  const n = parseZclUint(ctx, 16, x, `${indent}Number of Samples`)
   for (let i = 1; i <= n; i++) {
-    parseZclUint(ctx, 24, x, 'Sample ' + i)
+    parseZclUint(ctx, 24, x, `${indent}Sample ${i}`)
   }
 }
 
-function parseZseSupplyStatusResponse({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Implementation Date Time')
-  parseZclEnum(ctx, 8, x, 'Supply Status')
+function parseZseSupplyStatusResponse({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Implementation Date Time`)
+  parseZclEnum(ctx, 8, x, `${indent}Supply Status`)
 }
 
-function parseZseStartSamplingResponse({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 16, x, 'Sample Id')
+function parseZseStartSamplingResponse({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 16, x, `${indent}Sample Id`)
 }
 
 // ZSE Messaging Cluster
 
-function parseZseDisplayMessage({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Message Id')
-  parseZclBitmap(ctx, 8, x, 'Message Control')
-  parseZclUtcTime(ctx, x, 'Start Time')
-  parseZclUint(ctx, 16, x, 'Duration in Minutes')
-  parseZclOctetString(ctx, x, 'Message')
+function parseZseDisplayMessage({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Message Id`)
+  parseZclBitmap(ctx, 8, x, `${indent}Message Control`)
+  parseZclUtcTime(ctx, x, `${indent}Start Time`)
+  parseZclUint(ctx, 16, x, `${indent}Duration in Minutes`)
+  parseZclOctetString(ctx, x, `${indent}Message`)
   if (x.index < x.end) {
-    parseZclBitmap(ctx, 8, x, 'Extended Message Control')
+    parseZclBitmap(ctx, 8, x, `${indent}Extended Message Control`)
   }
 }
 
 // ZSE Prepayment Cluster
 
-function parseZseSelectAvailableEmergencyCredit({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Command Issue Date Time')
-  parseZclEnum(ctx, 8, x, 'Originating Device', {
+function parseZseSelectAvailableEmergencyCredit({
+  ctx,
+  x,
+  indent,
+}: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Command Issue Date Time`)
+  parseZclEnum(ctx, 8, x, `${indent}Originating Device`, {
     0: 'Energy Service Interface',
   })
 }
 
-function parseZseChangeDebt({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclOctetString(ctx, x, 'Debt Label')
-  parseZclInt32(ctx, x, 'Debt Amount')
-  parseZclUint(ctx, 8, x, 'Debt Recovery Method', {
+function parseZseChangeDebt({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclOctetString(ctx, x, `${indent}Debt Label`)
+  parseZclInt32(ctx, x, `${indent}Debt Amount`)
+  parseZclUint(ctx, 8, x, `${indent}Debt Recovery Method`, {
     0: 'Time-based debt',
     1: 'Payment-based debt',
   })
-  parseZclEnum(ctx, 8, x, 'Debt Amount Type', {
+  parseZclEnum(ctx, 8, x, `${indent}Debt Amount Type`, {
     1: 'Time-based debt (1) Incremental',
     3: 'Time-based debt (2) Incremental',
     5: 'Payment-based debt Incremental',
   })
-  parseZclUint(ctx, 32, x, 'Debt Recovery Start Time')
-  parseZclUint(ctx, 16, x, 'Debt Recovery Collection Time')
-  parseZclEnum(ctx, 8, x, 'Debt Recovery Frequency', {
+  parseZclUint(ctx, 32, x, `${indent}Debt Recovery Start Time`)
+  parseZclUint(ctx, 16, x, `${indent}Debt Recovery Collection Time`)
+  parseZclEnum(ctx, 8, x, `${indent}Debt Recovery Frequency`, {
     0: 'Hourly',
     1: 'Daily',
   })
-  parseZclInt32(ctx, x, 'Debt Recovery Amount')
-  parseZclEnum(ctx, 16, x, 'Debt Recovery Balance Percentage')
+  parseZclInt32(ctx, x, `${indent}Debt Recovery Amount`)
+  parseZclEnum(ctx, 16, x, `${indent}Debt Recovery Balance Percentage`)
 }
 
-function parseZseEmergencyCreditSetup({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Start Time')
-  parseZclUint(ctx, 32, x, 'Emergency Credit Limit')
-  parseZclUint(ctx, 32, x, 'Emergency Credit Threshold')
+function parseZseEmergencyCreditSetup({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Start Time`)
+  parseZclUint(ctx, 32, x, `${indent}Emergency Credit Limit`)
+  parseZclUint(ctx, 32, x, `${indent}Emergency Credit Threshold`)
 }
 
-function parseZseConsumerTopUp({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 8, x, 'Originating Device')
-  parseZclUtrn(ctx, x, 'Top Up Code')
+function parseZseConsumerTopUp({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 8, x, `${indent}Originating Device`)
+  parseZclUtrn(ctx, x, `${indent}Top Up Code`)
 }
 
-function parseZseCreditAdjustment({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Start Time')
-  parseZclUint(ctx, 8, x, 'Credit Adjustment Type')
-  parseZclInt32(ctx, x, 'Credit Adjustment Value')
+function parseZseCreditAdjustment({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Start Time`)
+  parseZclUint(ctx, 8, x, `${indent}Credit Adjustment Type`)
+  parseZclInt32(ctx, x, `${indent}Credit Adjustment Value`)
 }
 
-function parseZseChangePaymentMode({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Implementation Date Time')
-  parseZclUint(ctx, 16, x, 'Proposed Payment Control Configuration', {
+function parseZseChangePaymentMode({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Implementation Date Time`)
+  parseZclUint(ctx, 16, x, `${indent}Proposed Payment Control Configuration`, {
     0x0497:
       'Prepayment mode<br>Suspend Debt Emergency = True<br>Suspend Debt Disabled = True',
     0x0097:
@@ -843,132 +864,136 @@ function parseZseChangePaymentMode({ ctx, x }: ZclParseOptions) {
       'Prepayment mode<br>Suspend Debt Emergency = False<br>Suspend Debt Disabled = False',
     0x0c94: 'Credit mode',
   })
-  parseZclInt32(ctx, x, 'Cut Off Value')
+  parseZclInt32(ctx, x, `${indent}Cut Off Value`)
 }
 
-function parseZseGetPrepaySnapshot({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Earliest Start Time')
-  parseZclUtcTime(ctx, x, 'Latest End Time')
-  parseZclUint(ctx, 8, x, 'Snapshot Offset')
-  parseZclBitmap(ctx, 32, x, 'Snapshot Cause', { 1: 'General' })
+function parseZseGetPrepaySnapshot({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Earliest Start Time`)
+  parseZclUtcTime(ctx, x, `${indent}Latest End Time`)
+  parseZclUint(ctx, 8, x, `${indent}Snapshot Offset`)
+  parseZclBitmap(ctx, 32, x, `${indent}Snapshot Cause`, { 1: 'General' })
 }
 
-function parseZseGetTopUpLog({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Latest End Time')
-  parseZclUint(ctx, 8, x, 'Number of Records')
+function parseZseGetTopUpLog({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Latest End Time`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Records`)
 }
 
-function parseZseSetLowCreditWarningLevel({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Low Credit Warning Level')
+function parseZseSetLowCreditWarningLevel({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Low Credit Warning Level`)
 }
 
-function parseZseGetDebtRepaymentLog({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Latest End Time')
-  parseZclUint(ctx, 8, x, 'Number of Debts')
-  parseZclEnum(ctx, 8, x, 'Debt Type')
+function parseZseGetDebtRepaymentLog({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Latest End Time`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Debts`)
+  parseZclEnum(ctx, 8, x, `${indent}Debt Type`)
 }
 
-function parseZseSetMaximumCreditLimit({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Implementation Date Time')
-  parseZclUint(ctx, 32, x, 'Maximum Credit Level')
-  parseZclUint(ctx, 32, x, 'Maximum Credit Per Top Up')
+function parseZseSetMaximumCreditLimit({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Implementation Date Time`)
+  parseZclUint(ctx, 32, x, `${indent}Maximum Credit Level`)
+  parseZclUint(ctx, 32, x, `${indent}Maximum Credit Per Top Up`)
 }
 
-function parseZseSetOverallDebtCap({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Implementation Date Time')
-  parseZclInt32(ctx, x, 'Overall Debt Cap')
+function parseZseSetOverallDebtCap({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Implementation Date Time`)
+  parseZclInt32(ctx, x, `${indent}Overall Debt Cap`)
 }
 
-function parseZseChangePaymentModeResponse({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 8, x, 'Friendly Credit')
-  parseZclUint(ctx, 32, x, 'Friendly Credit Calendar ID')
-  parseZclUint(ctx, 32, x, 'Emergency Credit Limit')
-  parseZclUint(ctx, 32, x, 'Emergency Credit Threshold')
+function parseZseChangePaymentModeResponse({
+  ctx,
+  x,
+  indent,
+}: ZclParseOptions) {
+  parseZclUint(ctx, 8, x, `${indent}Friendly Credit`)
+  parseZclUint(ctx, 32, x, `${indent}Friendly Credit Calendar ID`)
+  parseZclUint(ctx, 32, x, `${indent}Emergency Credit Limit`)
+  parseZclUint(ctx, 32, x, `${indent}Emergency Credit Threshold`)
 }
 
-function parseZseConsumerTopUpResponse({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 8, x, 'Result Type')
-  parseZclInt32(ctx, x, 'Top Up Value')
-  parseZclUint(ctx, 8, x, 'Source of Top Up')
-  parseZclInt32(ctx, x, 'Credit Remaining')
+function parseZseConsumerTopUpResponse({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 8, x, `${indent}Result Type`)
+  parseZclInt32(ctx, x, `${indent}Top Up Value`)
+  parseZclUint(ctx, 8, x, `${indent}Source of Top Up`)
+  parseZclInt32(ctx, x, `${indent}Credit Remaining`)
 }
 
-function parseZsePublishTopUpLog({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 8, x, 'Command Index')
-  parseZclUint(ctx, 8, x, 'Number of Commands')
+function parseZsePublishTopUpLog({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 8, x, `${indent}Command Index`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Commands`)
   for (let i = 1; x.index < x.end; i++) {
-    parseZclUtrn(ctx, x, 'Top Up Code ' + i)
-    parseZclInt32(ctx, x, 'Top Up Amount ' + i)
-    parseZclUtcTime(ctx, x, 'Top Up Time ' + i)
+    parseZclUtrn(ctx, x, `${indent}Top Up Code ${i}`)
+    parseZclInt32(ctx, x, `${indent}Top Up Amount ${i}`)
+    parseZclUtcTime(ctx, x, `${indent}Top Up Time ${i}`)
   }
 }
 
-function parseZsePublishDebtLog({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 8, x, 'Command Index')
-  parseZclUint(ctx, 8, x, 'Number of Commands')
+function parseZsePublishDebtLog({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 8, x, `${indent}Command Index`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Commands`)
   for (let i = 1; x.index < x.end; i++) {
-    parseZclUtcTime(ctx, x, 'Collection Time ' + i)
-    parseZclUint(ctx, 32, x, 'Amount Collected ' + i)
-    parseZclEnum(ctx, 8, x, 'Debt Type ' + i)
-    parseZclUint(ctx, 32, x, 'Outstanding Debt ' + i)
+    parseZclUtcTime(ctx, x, `${indent}Collection Time ${i}`)
+    parseZclUint(ctx, 32, x, `${indent}Amount Collected ${i}`)
+    parseZclEnum(ctx, 8, x, `${indent}Debt Type ${i}`)
+    parseZclUint(ctx, 32, x, `${indent}Outstanding Debt ${i}`)
   }
 }
 
 // ZSE Calendar Cluster
 
-function parseZseGetDayProfiles({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUint(ctx, 32, x, 'Issuer Calendar Id')
-  parseZclUint(ctx, 8, x, 'Start Day Id')
-  parseZclUint(ctx, 8, x, 'Number of Days')
+function parseZseGetDayProfiles({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUint(ctx, 32, x, `${indent}Issuer Calendar Id`)
+  parseZclUint(ctx, 8, x, `${indent}Start Day Id`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Days`)
 }
 
-function parseZseGetWeekProfiles({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUint(ctx, 32, x, 'Issuer Calendar Id')
-  parseZclUint(ctx, 8, x, 'Start Week Id')
-  parseZclUint(ctx, 8, x, 'Number of Weeks')
+function parseZseGetWeekProfiles({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUint(ctx, 32, x, `${indent}Issuer Calendar Id`)
+  parseZclUint(ctx, 8, x, `${indent}Start Week Id`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Weeks`)
 }
 
-function parseZseGetSeasons({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUint(ctx, 32, x, 'Issuer Calendar Id')
+function parseZseGetSeasons({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUint(ctx, 32, x, `${indent}Issuer Calendar Id`)
 }
 
-function parseZseGetSpecialDays({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Start Time')
-  parseZclUint(ctx, 8, x, 'Number of Events')
-  parseZclCalendarUint(ctx, 8, x, 'Calendar Type')
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUint(ctx, 32, x, 'Issuer Calendar Id')
+function parseZseGetSpecialDays({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Start Time`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Events`)
+  parseZclCalendarUint(ctx, 8, x, `${indent}Calendar Type`)
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUint(ctx, 32, x, `${indent}Issuer Calendar Id`)
 }
 
-function parseZsePublishCalendar({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUint(ctx, 32, x, 'Issuer Calendar Id')
-  parseZclUtcTime(ctx, x, 'Start Time')
-  parseZclCalendarUint(ctx, 8, x, 'Calendar Type')
-  parseZclUint(ctx, 8, x, 'Calendar Time Reference')
-  parseZclOctetString(ctx, x, 'Calendar Name')
-  parseZclUint(ctx, 8, x, 'Number of Seasons')
-  parseZclUint(ctx, 8, x, 'Number of Week Profiles')
-  parseZclUint(ctx, 8, x, 'Number of Day Profiles')
+function parseZsePublishCalendar({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUint(ctx, 32, x, `${indent}Issuer Calendar Id`)
+  parseZclUtcTime(ctx, x, `${indent}Start Time`)
+  parseZclCalendarUint(ctx, 8, x, `${indent}Calendar Type`)
+  parseZclUint(ctx, 8, x, `${indent}Calendar Time Reference`)
+  parseZclOctetString(ctx, x, `${indent}Calendar Name`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Seasons`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Week Profiles`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Day Profiles`)
 }
 
-function parseZsePublishDayProfile({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUint(ctx, 32, x, 'Issuer Calendar Id')
-  parseZclUint(ctx, 8, x, 'Day Id')
-  const entries = parseZclUint(ctx, 8, x, 'Number of Schedule Entries')
-  parseZclUint(ctx, 8, x, 'Command Index')
-  parseZclUint(ctx, 8, x, 'Number of Commands')
-  const calendarType = parseZclCalendarUint(ctx, 8, x, 'Calendar Type')
+function parseZsePublishDayProfile({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUint(ctx, 32, x, `${indent}Issuer Calendar Id`)
+  parseZclUint(ctx, 8, x, `${indent}Day Id`)
+  const entries = parseZclUint(ctx, 8, x, `${indent}Number of Schedule Entries`)
+  parseZclUint(ctx, 8, x, `${indent}Command Index`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Commands`)
+  const calendarType = parseZclCalendarUint(ctx, 8, x, `${indent}Calendar Type`)
   for (let i = 1; i <= entries; i++) {
     const dec = parseNumberLE(x, 2)
     let hour: string | number = Math.floor(dec / 60)
@@ -976,145 +1001,160 @@ function parseZsePublishDayProfile({ ctx, x }: ZclParseOptions) {
     let minute: string | number = Math.floor(dec % 60)
     if (minute < 10) minute = '0' + minute
     const time = '' + hour + ':' + minute
-    putBytes(ctx, 'Schedule Entry ' + i + ' Start Time', getBytes(x, 2), time)
-    if (calendarType === 0x00) parseZclUint(ctx, 8, x, 'Price Tier ' + i)
-    else parseZclUint(ctx, 8, x, 'Friendly Credit Enable ' + i)
+    putBytes(
+      ctx,
+      `${indent}Schedule Entry ${i} Start Time`,
+      getBytes(x, 2),
+      time
+    )
+    if (calendarType === 0x00)
+      parseZclUint(ctx, 8, x, `${indent}Price Tier ${i}`)
+    else parseZclUint(ctx, 8, x, `${indent}Friendly Credit Enable ${i}`)
   }
 }
 
-function parseZsePublishWeekProfile({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUint(ctx, 32, x, 'Issuer Calendar Id')
-  parseZclUint(ctx, 8, x, 'Week Id')
-  putBytes(ctx, 'Day Id Refs (Monday to Sunday)', getBytes(x, 7))
+function parseZsePublishWeekProfile({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUint(ctx, 32, x, `${indent}Issuer Calendar Id`)
+  parseZclUint(ctx, 8, x, `${indent}Week Id`)
+  putBytes(ctx, `${indent}Day Id Refs (Monday to Sunday)`, getBytes(x, 7))
 }
 
-function parseZsePublishSeasons({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUint(ctx, 32, x, 'Issuer Calendar Id')
-  parseZclUint(ctx, 8, x, 'Command Index')
-  parseZclUint(ctx, 8, x, 'Number of Commands')
+function parseZsePublishSeasons({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUint(ctx, 32, x, `${indent}Issuer Calendar Id`)
+  parseZclUint(ctx, 8, x, `${indent}Command Index`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Commands`)
   for (let i = 1; x.index < x.end; i++) {
-    parseZclDate(ctx, x, 'Season ' + i + ' Start Date')
-    parseZclUint(ctx, 8, x, 'Season ' + i + ' Week Id Ref')
+    parseZclDate(ctx, x, `${indent}Season ${i} Start Date`)
+    parseZclUint(ctx, 8, x, `${indent}Season ${i} Week Id Ref`)
   }
 }
 
-function parseZsePublishSpecialDays({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUint(ctx, 32, x, 'Issuer Calendar Id')
-  parseZclUtcTime(ctx, x, 'Start Time')
-  parseZclCalendarUint(ctx, 8, x, 'Calendar Type')
-  const numberOfSpecialDays = parseZclUint(ctx, 8, x, 'Number of Special Days')
-  parseZclUint(ctx, 8, x, 'Command Index')
-  parseZclUint(ctx, 8, x, 'Number of Commands')
+function parseZsePublishSpecialDays({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUint(ctx, 32, x, `${indent}Issuer Calendar Id`)
+  parseZclUtcTime(ctx, x, `${indent}Start Time`)
+  parseZclCalendarUint(ctx, 8, x, `${indent}Calendar Type`)
+  const numberOfSpecialDays = parseZclUint(
+    ctx,
+    8,
+    x,
+    `${indent}Number of Special Days`
+  )
+  parseZclUint(ctx, 8, x, `${indent}Command Index`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Commands`)
   for (let i = 1; i <= numberOfSpecialDays; i++) {
-    parseZclDate(ctx, x, 'Special Day ' + i + ' Date')
-    parseZclUint(ctx, 8, x, 'Special Day ' + i + ' Day Id Ref')
+    parseZclDate(ctx, x, `${indent}Special Day ${i} Date`)
+    parseZclUint(ctx, 8, x, `${indent}Special Day ${i} Day Id Ref`)
   }
 }
 
 // ZSE Device Management Cluster
 
-function parseZseReportEventConfiguration({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 8, x, 'Command Index')
-  parseZclUint(ctx, 8, x, 'Total Commands')
+function parseZseReportEventConfiguration({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 8, x, `${indent}Command Index`)
+  parseZclUint(ctx, 8, x, `${indent}Total Commands`)
   for (let i = 1; x.index < x.end; i++) {
-    parseZclUint(ctx, 16, x, 'Event Id ' + i)
-    parseZclBitmap(ctx, 8, x, 'Event Configuration ' + i)
+    parseZclUint(ctx, 16, x, `${indent}Event Id ${i}`)
+    parseZclBitmap(ctx, 8, x, `${indent}Event Configuration ${i}`)
   }
 }
 
-function parseZsePublishChangeOfTenancy({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclBitmap(ctx, 8, x, 'Tariff Type')
-  parseZclUtcTime(ctx, x, 'Implementation Date Time')
-  parseZclBitmap(ctx, 32, x, 'Proposed Tenancy Change Control')
+function parseZsePublishChangeOfTenancy({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclBitmap(ctx, 8, x, `${indent}Tariff Type`)
+  parseZclUtcTime(ctx, x, `${indent}Implementation Date Time`)
+  parseZclBitmap(ctx, 32, x, `${indent}Proposed Tenancy Change Control`)
 }
 
-function parseZsePublishChangeOfSupplier({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 32, x, 'Current Provider Id')
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclBitmap(ctx, 8, x, 'Tariff Type')
-  parseZclUint(ctx, 32, x, 'Proposed Provider Id')
-  parseZclUtcTime(ctx, x, 'Provider Change Implementation Time')
-  parseZclBitmap(ctx, 32, x, 'Provider Change Control')
-  parseZclOctetString(ctx, x, 'Proposed Provider Name')
-  parseZclOctetString(ctx, x, 'Proposed Provider Contact Details')
+function parseZsePublishChangeOfSupplier({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 32, x, `${indent}Current Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclBitmap(ctx, 8, x, `${indent}Tariff Type`)
+  parseZclUint(ctx, 32, x, `${indent}Proposed Provider Id`)
+  parseZclUtcTime(ctx, x, `${indent}Provider Change Implementation Time`)
+  parseZclBitmap(ctx, 32, x, `${indent}Provider Change Control`)
+  parseZclOctetString(ctx, x, `${indent}Proposed Provider Name`)
+  parseZclOctetString(ctx, x, `${indent}Proposed Provider Contact Details`)
 }
 
-function parseZseRequestNewPasswordResponse({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Implementation Date Time')
-  parseZclUint(ctx, 16, x, 'Duration in Minutes')
-  parseZclEnum(ctx, 8, x, 'Password Type')
-  parseZclOctetString(ctx, x, 'Password')
+function parseZseRequestNewPasswordResponse({
+  ctx,
+  x,
+  indent,
+}: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Implementation Date Time`)
+  parseZclUint(ctx, 16, x, `${indent}Duration in Minutes`)
+  parseZclEnum(ctx, 8, x, `${indent}Password Type`)
+  parseZclOctetString(ctx, x, `${indent}Password`)
 }
 
-function parseZseUpdateSiteId({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Site Id Time')
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclOctetString(ctx, x, 'Site Id')
+function parseZseUpdateSiteId({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Site Id Time`)
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclOctetString(ctx, x, `${indent}Site Id`)
 }
 
-function parseZseSetEventConfiguration({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'Start Date Time')
-  parseZclBitmap(ctx, 8, x, 'Event Configuration')
-  parseZclEnum(ctx, 8, x, 'Configuration Control')
+function parseZseSetEventConfiguration({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Start Date Time`)
+  parseZclBitmap(ctx, 8, x, `${indent}Event Configuration`)
+  parseZclEnum(ctx, 8, x, `${indent}Configuration Control`)
   // Event Configuration Payload (Apply by List)
-  const n = parseZclUint(ctx, 8, x, 'Number of Events')
+  const n = parseZclUint(ctx, 8, x, `${indent}Number of Events`)
   for (let i = 1; i <= n; i++) {
-    parseZclUint(ctx, 16, x, 'Event Id')
+    parseZclUint(ctx, 16, x, `${indent}Event Id ${i}`)
   }
 }
 
-function parseZseGetEventConfiguration({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 16, x, 'Event Id')
+function parseZseGetEventConfiguration({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 16, x, `${indent}Event Id`)
 }
 
-function parseZseUpdateCin({ ctx, x }: ZclParseOptions) {
-  parseZclUtcTime(ctx, x, 'Issuer Event Id')
-  parseZclUtcTime(ctx, x, 'CIN Implementation Time')
-  parseZclUint(ctx, 32, x, 'Provider Id')
-  parseZclOctetString(ctx, x, 'Customer Id Number')
+function parseZseUpdateCin({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUtcTime(ctx, x, `${indent}Issuer Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}CIN Implementation Time`)
+  parseZclUint(ctx, 32, x, `${indent}Provider Id`)
+  parseZclOctetString(ctx, x, `${indent}Customer Id Number`)
 }
 
 // ZSE Event Cluster
 
-function parseZseGetEventLog({ ctx, x }: ZclParseOptions) {
-  parseZclBitmap(ctx, 8, x, 'Event Control / Log Id')
-  parseZclUint(ctx, 16, x, 'Event Id')
-  parseZclUtcTime(ctx, x, 'Start Time')
-  parseZclUtcTime(ctx, x, 'End Time')
-  parseZclUint(ctx, 8, x, 'Number of Events')
-  parseZclUint(ctx, 16, x, 'Event Offset')
+function parseZseGetEventLog({ ctx, x, indent }: ZclParseOptions) {
+  parseZclBitmap(ctx, 8, x, `${indent}Event Control / Log Id`)
+  parseZclUint(ctx, 16, x, `${indent}Event Id`)
+  parseZclUtcTime(ctx, x, `${indent}Start Time`)
+  parseZclUtcTime(ctx, x, `${indent}End Time`)
+  parseZclUint(ctx, 8, x, `${indent}Number of Events`)
+  parseZclUint(ctx, 16, x, `${indent}Event Offset`)
 }
 
-function parseZseClearEventLogRequest({ ctx, x }: ZclParseOptions) {
-  parseZclBitmap(ctx, 8, x, 'Log Id')
+function parseZseClearEventLogRequest({ ctx, x, indent }: ZclParseOptions) {
+  parseZclBitmap(ctx, 8, x, `${indent}Log Id`)
 }
 
-function parseZsePublishEventLog({ ctx, x }: ZclParseOptions) {
-  parseZclUint(ctx, 16, x, 'Number of Events')
-  parseZclUint(ctx, 8, x, 'Command Index')
-  parseZclUint(ctx, 8, x, 'Total Commands')
-  parseZclBitmap(ctx, 8, x, 'Log Payload Control')
+function parseZsePublishEventLog({ ctx, x, indent }: ZclParseOptions) {
+  parseZclUint(ctx, 16, x, `${indent}Number of Events`)
+  parseZclUint(ctx, 8, x, `${indent}Command Index`)
+  parseZclUint(ctx, 8, x, `${indent}Total Commands`)
+  parseZclBitmap(ctx, 8, x, `${indent}Log Payload Control`)
   for (let i = 1; x.index < x.end; i++) {
-    parseLogIdBitmap(ctx, 8, x, 'Log Id ' + i)
-    parseZclUintHex(ctx, 16, x, 'Event Id ' + i)
-    parseZclUtcTime(ctx, x, 'Event Time ' + i)
-    parseZclOctetString(ctx, x, 'Event Data ' + i)
+    parseLogIdBitmap(ctx, 8, x, `${indent}Log Id ${i}`)
+    parseZclUintHex(ctx, 16, x, `${indent}Event Id ${i}`)
+    parseZclUtcTime(ctx, x, `${indent}Event Time ${i}`)
+    parseZclOctetString(ctx, x, `${indent}Event Data ${i}`)
   }
 }
 
-function parseZseClearEventLogResponse({ ctx, x }: ZclParseOptions) {
-  parseZclBitmap(ctx, 8, x, 'Cleared Event Logs')
+function parseZseClearEventLogResponse({ ctx, x, indent }: ZclParseOptions) {
+  parseZclBitmap(ctx, 8, x, `${indent}Cleared Event Logs`)
 }
 
 // ZCL Types
@@ -1339,7 +1379,7 @@ function parseZclUtrn(ctx: Context, x: Slice, name: string) {
   )
 }
 
-function parseZclStatusCode(ctx: Context, x: Slice) {
+function parseZclStatusCode(ctx: Context, x: Slice, indent: string) {
   const names: Record<number, string> = {
     0x00: 'Success',
     0x01: 'Failure',
@@ -1377,6 +1417,6 @@ function parseZclStatusCode(ctx: Context, x: Slice) {
   }
   const value = x.input[x.index]
   const name = names[value] || ''
-  putBytes(ctx, 'Status Code', getBytes(x, 1), name)
+  putBytes(ctx, `${indent}Status Code`, getBytes(x, 1), name)
   return value
 }

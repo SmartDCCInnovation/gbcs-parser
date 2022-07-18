@@ -20,5 +20,5 @@ module.exports = {
     "rules": {
         "eqeqeq": ["error", "always"]
     },
-    "ignorePatterns": [ "**/.eslintrc.js" ]
+    "ignorePatterns": [ "**/.eslintrc.js", "**/jest.config.js", "**/*.test.ts" ]
 }

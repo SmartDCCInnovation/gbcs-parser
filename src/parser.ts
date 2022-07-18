@@ -69,7 +69,7 @@ async function parseGeneralSigning(
   putSeparator(ctx, 'Grouping Header')
   const signedDataStart = x.index + 1
   putBytes(ctx, 'General Signing', getBytes(x, 2))
-  const craFlag = parseCraFlag(ctx, x)
+  const craFlag = parseCraFlag(ctx, x, '')
   const cipherInfo: CipherInfo = {
     origCounter: x.input.subarray(x.index, x.index + 8),
     origSysTitle: x.input.subarray(x.index + 9, x.index + 17),
@@ -83,10 +83,18 @@ async function parseGeneralSigning(
   const otherInfo = getBytes(x, otherInfoLen)
   const messageCode = parseMessageCode(ctx, ' Message Code', otherInfo)
   if (otherInfoLen >= 10) {
+    cipherInfo.recipSysTitle = otherInfo.input.subarray(
+      otherInfo.index,
+      otherInfo.index + 8
+    )
     putBytes(ctx, ' Supplementary Remote Party ID', getBytes(otherInfo, 8))
     if (otherInfoLen >= 18) {
       parseCounter(ctx, ' Supplementary Remote Party Counter', otherInfo)
       if (otherInfoLen === 26) {
+        cipherInfo.origCounter = otherInfo.input.subarray(
+          otherInfo.index,
+          otherInfo.index + 8
+        )
         parseCounter(ctx, ' Supplementary Originator Counter', otherInfo)
       } else if (otherInfoLen > 26) {
         asn1.parseCertificate(
@@ -127,154 +135,150 @@ function parsePayload(
   craFlag: number
 ) {
   putSeparator(ctx, 'Payload')
-  try {
-    if (messageCode === 0x0008) {
-      // CS02a
-      if (craFlag === 1) {
-        asn1.parseProvideSecurityCredentialDetailsCommand(ctx, x)
-      } else {
-        asn1.parseProvideSecurityCredentialDetailsResponse(ctx, x)
-      }
-    } else if (messageCode >= 0x0100 && messageCode <= 0x0109) {
-      // CS02b
-      if (craFlag === 1) {
-        asn1.parseUpdateSecurityCredentialsCommand(ctx, x)
-      } else {
-        asn1.parseUpdateSecurityCredentialsResponse(ctx, x)
-      }
-    } else if (messageCode === 0x00cb) {
-      // CS02b alert
-      asn1.parseUpdateSecurityCredentialsAlert(ctx, x)
-    } else if (messageCode === 0x000a) {
-      // CS02c
-      if (craFlag === 1) {
-        asn1.parseIssueSecurityCredentialsCommand(ctx, x)
-      } else {
-        asn1.parseIssueSecurityCredentialsResponse(ctx, x)
-      }
-    } else if (messageCode === 0x000b) {
-      // CS02d
-      if (craFlag === 1) {
-        asn1.parseUpdateDeviceCertificateCommand(ctx, x)
-      } else {
-        asn1.parseUpdateDeviceCertificateResponse(ctx, x)
-      }
-    } else if (messageCode === 0x000c) {
-      // CS02e
-      if (craFlag === 1) {
-        asn1.parseProvideDeviceCertificateCommand(ctx, x)
-      } else {
-        asn1.parseProvideDeviceCertificateResponse(ctx, x)
-      }
-    } else if (
-      messageCode === 0x000d ||
-      messageCode === 0x00ab ||
-      messageCode === 0x000e ||
-      messageCode === 0x00af
-    ) {
-      // CS03A1 || CS03A2 || CS03B || CS03C
-      if (craFlag === 1) {
-        asn1.parseJoinDeviceCommand(ctx, x)
-      } else {
-        asn1.parseJoindDeviceResponse(ctx, x)
-      }
-    } else if (messageCode === 0x000f || messageCode === 0x0010) {
-      // CS04AC || CS04B
-      if (craFlag === 1) {
-        asn1.parseUnjoinDeviceCommand(ctx, x)
-      } else {
-        asn1.parseUnjoindDeviceResponse(ctx, x)
-      }
-    } else if (messageCode === 0x0012) {
-      // CS06
-      if (craFlag === 1) {
-        asn1.parseActivateFirmwareCommand(ctx, x)
-      } else {
-        asn1.parseActivateFirmwareResponse(ctx, x)
-      }
-    } else if (messageCode === 0x00ca) {
-      // CS06 alert
-      asn1.parseActivateFirmwareAlert(ctx, x)
-    } else if (messageCode === 0x0013) {
-      // CS07
-      if (craFlag === 1) {
-        asn1.parseReadDeviceJoinDetailsCommand(ctx, x)
-      } else {
-        asn1.parseReadDeviceJoinDetailsResponse(ctx, x)
-      }
-    } else if (messageCode === 0x007f) {
-      // GCS28
-      if (craFlag === 1) {
-        asn1.parseSetTimeCommand(ctx, x)
-      } else {
-        asn1.parseSetTimeResponse(ctx, x)
-      }
-    } else if (messageCode === 0x008b) {
-      // GCS53
-      gbz.parseGbzGcs53AlertPayload(ctx, x)
-    } else if (messageCode === 0x008c) {
-      // GCS59
-      if (craFlag === 1) {
-        asn1.parseGpfDeviceLogRestoreCommand(ctx, x)
-      } else {
-        asn1.parseGpfDeviceLogRestoreResponse(ctx, x)
-      }
-    } else if (messageCode === 0x00b2) {
-      // GCS62
-      asn1.parseGpfDeviceLogBackupAlert(ctx, x)
-    } else if (messageCode === 0x00cc) {
-      // Future Dated DLMS
-      dlms.parseDlmsFutureDatedAlert(ctx, x)
-    } else if (messageCode === 0x00cd) {
-      // Future Dated GBZ
-      gbz.parseGbzFutureDatedAlertPayload(ctx, x)
-    } else if (messageCode === 0x00ce) {
-      // FW Distribution Receipt Alert ESME
-      dlms.parseDlmsFirmwareDistributionReceiptAlert(ctx, x)
-    } else if (messageCode === 0x00cf) {
-      // FW Distribution Receipt Alert GSME
-      gbz.parseGbzFirmwareDistributionReceiptAlert(ctx, x)
-    } else if (messageCode === 0x0061) {
-      // ECS68
-      dlms.parseDlmsBillingDataLogAlert(ctx, x)
-    } else if (messageCode === 0x00d5) {
-      // 8F84 Alert
-      dlms.parseFailureToDeliverRemotePartyToEsme(ctx, x)
-    } else if (messageCode === 0x00f0) {
-      // 81A0 Alert ESME
-      dlms.parseDlmsMeterIntegrityIssueWarningAlert(ctx, x)
-    } else if (messageCode === 0x00f2) {
-      // 81A0 Alert GSME
-      gbz.parseGbzMeterIntegrityIssueWarningAlert(ctx, x)
-    } else if (x.input[x.index] === 1 && x.input[x.index + 1] === 9) {
-      if (craFlag === 3) {
-        gbz.parseGbzAlertPayload(ctx, x)
-      } else {
-        gbz.parseGbzPayload(ctx, x)
-      }
-    } else if (x.input[x.index] === 0xd9) {
-      dlms.parseDlmsAccessRequest(ctx, x)
-    } else if (x.input[x.index] === 0xda) {
-      dlms.parseDlmsAccessResponse(ctx, x, messageCode)
-    } else if (x.input[x.index] === 0x0f) {
-      dlms.parseDlmsDataNotificationGbcsAlert(ctx, x)
-    } else if (messageCode === 0x0128) {
-      // CCS08 alert
-      asn1.parseFirmwareTransferAlert(ctx, x)
-    } else if (messageCode === 0x0129) {
-      // CS08 Read PPMID/HCALCS Firmware Version
-      if (craFlag === 3) {
-        asn1.parseReadPPMIDHCALCSFirmwareVersionAlert(ctx, x)
-      } else if (craFlag === 2) {
-        asn1.parseReadPPMIDHCALCSFirmwareVersionResponse(ctx, x)
-      } else {
-        asn1.parseReadPPMIDHCALCSFirmwareVersionCommand(ctx, x)
-      }
+  if (messageCode === 0x0008) {
+    // CS02a
+    if (craFlag === 1) {
+      asn1.parseProvideSecurityCredentialDetailsCommand(ctx, x)
     } else {
-      putBytes(ctx, 'Payload', x)
+      asn1.parseProvideSecurityCredentialDetailsResponse(ctx, x)
     }
-  } catch (error) {
-    putBytes(ctx, 'ERROR', x, String(error))
+  } else if (messageCode >= 0x0100 && messageCode <= 0x0109) {
+    // CS02b
+    if (craFlag === 1) {
+      asn1.parseUpdateSecurityCredentialsCommand(ctx, x)
+    } else {
+      asn1.parseUpdateSecurityCredentialsResponse(ctx, x)
+    }
+  } else if (messageCode === 0x00cb) {
+    // CS02b alert
+    asn1.parseUpdateSecurityCredentialsAlert(ctx, x)
+  } else if (messageCode === 0x000a) {
+    // CS02c
+    if (craFlag === 1) {
+      asn1.parseIssueSecurityCredentialsCommand(ctx, x)
+    } else {
+      asn1.parseIssueSecurityCredentialsResponse(ctx, x)
+    }
+  } else if (messageCode === 0x000b) {
+    // CS02d
+    if (craFlag === 1) {
+      asn1.parseUpdateDeviceCertificateCommand(ctx, x)
+    } else {
+      asn1.parseUpdateDeviceCertificateResponse(ctx, x)
+    }
+  } else if (messageCode === 0x000c) {
+    // CS02e
+    if (craFlag === 1) {
+      asn1.parseProvideDeviceCertificateCommand(ctx, x)
+    } else {
+      asn1.parseProvideDeviceCertificateResponse(ctx, x)
+    }
+  } else if (
+    messageCode === 0x000d ||
+    messageCode === 0x00ab ||
+    messageCode === 0x000e ||
+    messageCode === 0x00af
+  ) {
+    // CS03A1 || CS03A2 || CS03B || CS03C
+    if (craFlag === 1) {
+      asn1.parseJoinDeviceCommand(ctx, x)
+    } else {
+      asn1.parseJoindDeviceResponse(ctx, x)
+    }
+  } else if (messageCode === 0x000f || messageCode === 0x0010) {
+    // CS04AC || CS04B
+    if (craFlag === 1) {
+      asn1.parseUnjoinDeviceCommand(ctx, x)
+    } else {
+      asn1.parseUnjoindDeviceResponse(ctx, x)
+    }
+  } else if (messageCode === 0x0012) {
+    // CS06
+    if (craFlag === 1) {
+      asn1.parseActivateFirmwareCommand(ctx, x)
+    } else {
+      asn1.parseActivateFirmwareResponse(ctx, x)
+    }
+  } else if (messageCode === 0x00ca) {
+    // CS06 alert
+    asn1.parseActivateFirmwareAlert(ctx, x)
+  } else if (messageCode === 0x0013) {
+    // CS07
+    if (craFlag === 1) {
+      asn1.parseReadDeviceJoinDetailsCommand(ctx, x)
+    } else {
+      asn1.parseReadDeviceJoinDetailsResponse(ctx, x)
+    }
+  } else if (messageCode === 0x007f) {
+    // GCS28
+    if (craFlag === 1) {
+      asn1.parseSetTimeCommand(ctx, x)
+    } else {
+      asn1.parseSetTimeResponse(ctx, x)
+    }
+  } else if (messageCode === 0x008b) {
+    // GCS53
+    gbz.parseGbzGcs53AlertPayload(ctx, x)
+  } else if (messageCode === 0x008c) {
+    // GCS59
+    if (craFlag === 1) {
+      asn1.parseGpfDeviceLogRestoreCommand(ctx, x)
+    } else {
+      asn1.parseGpfDeviceLogRestoreResponse(ctx, x)
+    }
+  } else if (messageCode === 0x00b2) {
+    // GCS62
+    asn1.parseGpfDeviceLogBackupAlert(ctx, x)
+  } else if (messageCode === 0x00cc) {
+    // Future Dated DLMS
+    dlms.parseDlmsFutureDatedAlert(ctx, x)
+  } else if (messageCode === 0x00cd) {
+    // Future Dated GBZ
+    gbz.parseGbzFutureDatedAlertPayload(ctx, x)
+  } else if (messageCode === 0x00ce) {
+    // FW Distribution Receipt Alert ESME
+    dlms.parseDlmsFirmwareDistributionReceiptAlert(ctx, x)
+  } else if (messageCode === 0x00cf) {
+    // FW Distribution Receipt Alert GSME
+    gbz.parseGbzFirmwareDistributionReceiptAlert(ctx, x)
+  } else if (messageCode === 0x0061) {
+    // ECS68
+    dlms.parseDlmsBillingDataLogAlert(ctx, x)
+  } else if (messageCode === 0x00d5) {
+    // 8F84 Alert
+    dlms.parseFailureToDeliverRemotePartyToEsme(ctx, x)
+  } else if (messageCode === 0x00f0) {
+    // 81A0 Alert ESME
+    dlms.parseDlmsMeterIntegrityIssueWarningAlert(ctx, x)
+  } else if (messageCode === 0x00f2) {
+    // 81A0 Alert GSME
+    gbz.parseGbzMeterIntegrityIssueWarningAlert(ctx, x)
+  } else if (x.input[x.index] === 1 && x.input[x.index + 1] === 9) {
+    if (craFlag === 3) {
+      gbz.parseGbzAlertPayload(ctx, x)
+    } else {
+      gbz.parseGbzPayload(ctx, x)
+    }
+  } else if (x.input[x.index] === 0xd9) {
+    dlms.parseDlmsAccessRequest(ctx, x)
+  } else if (x.input[x.index] === 0xda) {
+    dlms.parseDlmsAccessResponse(ctx, x, messageCode)
+  } else if (x.input[x.index] === 0x0f) {
+    dlms.parseDlmsDataNotificationGbcsAlert(ctx, x)
+  } else if (messageCode === 0x0128) {
+    // CCS08 alert
+    asn1.parseFirmwareTransferAlert(ctx, x)
+  } else if (messageCode === 0x0129) {
+    // CS08 Read PPMID/HCALCS Firmware Version
+    if (craFlag === 3) {
+      asn1.parseReadPPMIDHCALCSFirmwareVersionAlert(ctx, x)
+    } else if (craFlag === 2) {
+      asn1.parseReadPPMIDHCALCSFirmwareVersionResponse(ctx, x)
+    } else {
+      asn1.parseReadPPMIDHCALCSFirmwareVersionCommand(ctx, x)
+    }
+  } else {
+    putBytes(ctx, 'Payload', x)
   }
   putUnparsedBytes(x)
 }
@@ -311,8 +315,10 @@ export async function parseGbcsMessage(
     } else {
       throw new Error('GBT not supported')
     }
-  } else {
+  } else if (x.input[0] === 0xdf) {
     cipherInfo = await parseGeneralSigning(ctx, x)
+  } else {
+    throw new Error('unknown frame format')
   }
 
   if (ctx.decryptionList.length > 0) {
@@ -327,14 +333,13 @@ async function handleDecryptGbcsData(
   cipherInfo: CipherInfo,
   lookupKey: KeyStore
 ): Promise<void> {
-  putSeparator(ctx, 'Decrypted Payload')
-
   const pubKey = await lookupKey(cipherInfo.origSysTitle, 'KA', false)
   const prvKey = await lookupKey(cipherInfo.recipSysTitle, 'KA', true)
 
   const aesKey = deriveKeyFromPair(prvKey, pubKey, cipherInfo)
 
-  ctx.decryptionList.forEach((cb) => {
-    cb(cipherInfo, aesKey)
-  })
+  for (let i = 0; i < ctx.decryptionList.length; i++) {
+    putSeparator(ctx, `Decrypted Payload ${i}`)
+    ctx.decryptionList[i](cipherInfo, aesKey)
+  }
 }

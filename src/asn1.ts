@@ -38,15 +38,16 @@ export function parseProvideSecurityCredentialDetailsCommand(
   x: Slice
 ) {
   const s = parseSequence(ctx, x, 'Provide Security Credential Details Command')
+  const indent = ' '
   parseTrustAnchorCellIdentifier(
     ctx,
     s,
-    'Authorising Remote Party TA Cell Identifier'
+    `${indent}Authorising Remote Party TA Cell Identifier`
   )
   parseSequenceOf(
     ctx,
     s,
-    'Remote Party Roles Credentials Required',
+    `${indent}Remote Party Roles Credentials Required`,
     parseRemotePartyRole
   )
 }
@@ -55,91 +56,112 @@ export function parseProvideSecurityCredentialDetailsResponse(
   ctx: Context,
   x: Slice
 ) {
-  const sequenceOf = parseSequence(
+  parseSequenceOf(
     ctx,
     x,
-    'Provide Security Credential Details Response'
-  )
-  while (sequenceOf.index < sequenceOf.end) {
-    const rpDetails = parseSequence(ctx, sequenceOf, 'Remote Party Details')
-    parseRemotePartyRole(ctx, rpDetails)
-    parseStatusCode(ctx, rpDetails)
-    if (rpDetails.index < rpDetails.end) {
-      parseSeqNumber(ctx, rpDetails, 'Current Seq Number')
-      const tacDetails = parseSequence(
-        ctx,
-        rpDetails,
-        'Trust Anchor Cell Details'
-      )
-      while (tacDetails.index < tacDetails.end) {
-        const contents = parseSequence(
-          ctx,
-          tacDetails,
-          'Trust Anchor Cell Contents'
-        )
-        parseKeyUsage(ctx, contents)
-        parseCellUsage(ctx, contents)
-        parseDerOctetString(ctx, contents, 'Subject Unique ID')
-        parseDerOctetString(ctx, contents, 'Subject Key Identifier')
-      }
+    'Provide Security Credential Details Response',
+    (ctx, x, name) => {
+      parseSequenceOf(ctx, x, `${name}Remote Party Details`, (ctx, x, name) => {
+        const indent = name.match(/^ */)?.[0] ?? ''
+        parseRemotePartyRole(ctx, x, indent)
+        parseStatusCode(ctx, x, indent)
+        if (x.index < x.end) {
+          parseSeqNumber(ctx, x, `${indent}Current Seq Number`)
+          parseSequenceOf(
+            ctx,
+            x,
+            `${indent}Trust Anchor Cell Details`,
+            (ctx, x, name) => {
+              const indent = (name.match(/^ */)?.[0] ?? '') + ' '
+              const s = parseSequence(
+                ctx,
+                x,
+                `${name}Trust Anchor Cell Contents`
+              )
+              parseKeyUsage(ctx, s, indent)
+              parseCellUsage(ctx, s, indent)
+              parseDerOctetString(ctx, s, `${indent}Subject Unique ID`)
+              parseDerOctetString(ctx, s, `${indent}Subject Key Identifier`)
+            }
+          )
+        }
+      })
     }
-  }
+  )
 }
 
 // CS02b Update Security Credentials
 
 export function parseUpdateSecurityCredentialsCommand(ctx: Context, x: Slice) {
   const s = parseSequence(ctx, x, 'Update Security Credentials Command')
-  parseAuthorisingRemotePartyControl(ctx, s)
-  parseSequenceOf(ctx, s, 'Replacements', parseTrustAnchorReplacement)
-  parseSequenceOf(ctx, s, 'Certification Path Certificates', parseCertificate)
-  if (isPresent(s, 0x18)) parseGeneralizedTime(ctx, s, 'Execution Date Time')
+  const indent = ' '
+  parseAuthorisingRemotePartyControl(ctx, s, indent)
+  parseSequenceOf(ctx, s, `${indent}Replacements`, parseTrustAnchorReplacement)
+  parseSequenceOf(
+    ctx,
+    s,
+    `${indent}Certification Path Certificates`,
+    parseCertificate
+  )
+  if (isPresent(s, 0x18))
+    parseGeneralizedTime(ctx, s, `${indent}Execution Date Time`)
 }
 
 export function parseUpdateSecurityCredentialsResponse(ctx: Context, x: Slice) {
   const s = parseSequence(ctx, x, 'Update Security Credentials Response')
-  parseNull(ctx, s, 'Command Accepted')
-  if (isPresent(s, 0x30)) parseUpdateSecurityCredentialsExecutionOutcome(ctx, s)
+  const indent = ' '
+  parseNull(ctx, s, `${indent}Command Accepted`)
+  if (isPresent(s, 0x30))
+    parseUpdateSecurityCredentialsExecutionOutcome(ctx, s, indent)
 }
 
 export function parseUpdateSecurityCredentialsAlert(ctx: Context, x: Slice) {
   const s = parseSequence(ctx, x, 'Update Security Credentials Alert')
-  parseAsn1AlertCode(ctx, s)
-  parseGeneralizedTime(ctx, s, 'Execution Date Time')
-  parseUpdateSecurityCredentialsExecutionOutcome(ctx, s)
+  const indent = ' '
+  parseAsn1AlertCode(ctx, s, indent)
+  parseGeneralizedTime(ctx, s, `${indent}Execution Date Time`)
+  parseUpdateSecurityCredentialsExecutionOutcome(ctx, s, indent)
 }
 
 export function parseUpdateSecurityCredentialsExecutionOutcome(
   ctx: Context,
-  x: Slice
+  x: Slice,
+  indent: string
 ) {
-  const s = parseSequence(ctx, x, 'Execution Outcome')
-  parseSeqNumber(ctx, s, 'Authorising Remote Party Seq Number')
-  parseCredentialsReplacementMode(ctx, s)
+  const s = parseSequence(ctx, x, `${indent}Execution Outcome`)
+  indent = indent + ' '
+  parseSeqNumber(ctx, s, `${indent}Authorising Remote Party Seq Number`)
+  parseCredentialsReplacementMode(ctx, s, indent)
   parseSequenceOf(
     ctx,
     s,
-    'Remote Party Seq Number Changes',
+    `${indent}Remote Party Seq Number Changes`,
     parseRemotePartySeqNumberChange
   )
-  parseSequenceOf(ctx, s, 'Replacement Outcomes', parseReplacementOutcome)
+  parseSequenceOf(
+    ctx,
+    s,
+    `${indent}Replacement Outcomes`,
+    parseReplacementOutcome
+  )
 }
 
-export function parseReplacementOutcome(ctx: Context, x: Slice) {
-  const s = parseSequence(ctx, x, 'Replacement Outcome')
-  parseTrustAnchorCellIdentifier(ctx, s, ' Affected Trust Anchor Cell')
-  parseStatusCode(ctx, s)
-  parseDerOctetString(ctx, s, ' Existing Subject Unique ID')
-  parseDerOctetString(ctx, s, ' Existing Subject Key ID')
-  parseDerOctetString(ctx, s, ' Replacing Subject Unique ID')
-  parseDerOctetString(ctx, s, ' Replacing Subject Key ID')
+export function parseReplacementOutcome(ctx: Context, x: Slice, name: string) {
+  const s = parseSequence(ctx, x, `${name}Replacement Outcome`)
+  const indent = (name.match(/^ */)?.[0] ?? '') + ' '
+  parseTrustAnchorCellIdentifier(ctx, s, `${indent}Affected Trust Anchor Cell`)
+  parseStatusCode(ctx, s, indent)
+  parseDerOctetString(ctx, s, `${indent}Existing Subject Unique ID`)
+  parseDerOctetString(ctx, s, `${indent}Existing Subject Key ID`)
+  parseDerOctetString(ctx, s, `${indent}Replacing Subject Unique ID`)
+  parseDerOctetString(ctx, s, `${indent}Replacing Subject Key ID`)
 }
 
 // CS02c Issue Security Credentials
 
 export function parseIssueSecurityCredentialsCommand(ctx: Context, x: Slice) {
   const s = parseSequence(ctx, x, 'Issue Security Credentials Command')
-  parseKeyUsage(ctx, s)
+  parseKeyUsage(ctx, s, ' ')
 }
 
 export function parseIssueSecurityCredentialsResponse(ctx: Context, x: Slice) {
@@ -178,7 +200,7 @@ export function parseUpdateDeviceCertificateResponse(ctx: Context, x: Slice) {
 
 export function parseProvideDeviceCertificateCommand(ctx: Context, x: Slice) {
   const s = parseSequence(ctx, x, 'Provide Device Certificate Command')
-  parseKeyUsage(ctx, s)
+  parseKeyUsage(ctx, s, ' ')
 }
 
 export function parseProvideDeviceCertificateResponse(ctx: Context, x: Slice) {
@@ -197,16 +219,17 @@ export function parseProvideDeviceCertificateResponse(ctx: Context, x: Slice) {
 
 export function parseJoinDeviceCommand(ctx: Context, x: Slice) {
   const s = parseSequence(ctx, x, 'Join Device Command')
-  parseInteger(ctx, s, ' Join Method and Role', {
+  const indent = ' '
+  parseInteger(ctx, s, `${indent}Join Method and Role`, {
     0: 'Method A Initiator',
     1: 'Method A Responder',
     2: 'Method B',
     3: 'Method C',
   })
-  parseDerOctetString(ctx, s, ' Entity Id')
-  parseDeviceType(ctx, s)
+  parseDerOctetString(ctx, s, `${indent}Entity Id`)
+  parseDeviceType(ctx, s, indent)
   if (s.index < s.end) {
-    parseCertificate(ctx, s)
+    parseCertificate(ctx, s, indent)
   }
 }
 
@@ -248,10 +271,11 @@ export function parseUnjoindDeviceResponse(ctx: Context, x: Slice) {
 
 export function parseActivateFirmwareCommand(ctx: Context, x: Slice) {
   const s = parseSequence(ctx, x, 'Activate Firmware Command')
-  parseDerOctetString(ctx, s, 'Manufacturer Image Hash')
-  parseSeqNumber(ctx, s, 'Originator Counter')
+  const indent = ' '
+  parseDerOctetString(ctx, s, `${indent}Manufacturer Image Hash`)
+  parseSeqNumber(ctx, s, `${indent}Originator Counter`)
   if (s.index < s.end) {
-    parseGeneralizedTime(ctx, s, 'Execution Date Time')
+    parseGeneralizedTime(ctx, s, `${indent}Execution Date Time`)
   }
 }
 
@@ -259,27 +283,33 @@ export function parseActivateFirmwareResponse(ctx: Context, x: Slice) {
   if (isPresent(x, 5)) {
     parseNull(ctx, x, 'Command Accepted')
   } else {
-    parseActivateFirmwareExecutionOutcome(ctx, x)
+    parseActivateFirmwareExecutionOutcome(ctx, x, '')
   }
 }
 
 export function parseActivateFirmwareAlert(ctx: Context, x: Slice) {
   const s = parseSequence(ctx, x, 'Activate Firmware Alert')
-  parseAsn1AlertCode(ctx, s)
-  parseGeneralizedTime(ctx, s, 'Execution Date Time')
-  parseSeqNumber(ctx, s, 'Originator Counter')
-  parseActivateFirmwareExecutionOutcome(ctx, s)
+  const indent = ' '
+  parseAsn1AlertCode(ctx, s, indent)
+  parseGeneralizedTime(ctx, s, `${indent}Execution Date Time`)
+  parseSeqNumber(ctx, s, `${indent}Originator Counter`)
+  parseActivateFirmwareExecutionOutcome(ctx, s, indent)
 }
 
-export function parseActivateFirmwareExecutionOutcome(ctx: Context, x: Slice) {
-  const s = parseSequence(ctx, x, 'Execution Outcome')
-  parseInteger(ctx, s, 'Response Code', {
+export function parseActivateFirmwareExecutionOutcome(
+  ctx: Context,
+  x: Slice,
+  indent: string
+) {
+  const s = parseSequence(ctx, x, `${indent}Execution Outcome`)
+  indent = indent + ' '
+  parseInteger(ctx, s, `${indent}Response Code`, {
     0: 'Success',
     1: 'No Image Held',
     2: 'Hash Mismatch',
     3: 'Activation Failure',
   })
-  parseDerOctetString(ctx, s, 'Firmware Version')
+  parseDerOctetString(ctx, s, `${indent}Firmware Version`)
 }
 
 // CS07
@@ -290,27 +320,33 @@ export function parseReadDeviceJoinDetailsCommand(ctx: Context, x: Slice) {
 
 export function parseReadDeviceJoinDetailsResponse(ctx: Context, x: Slice) {
   const s = parseSequence(ctx, x, 'Read Device Join Details Response')
-  parseInteger(ctx, s, 'Response Code', { 0: 'Success', 1: 'Read Failure' })
+  const indent = ' '
+  parseInteger(ctx, s, `${indent}Response Code`, {
+    0: 'Success',
+    1: 'Read Failure',
+  })
   if (s.index < s.end) {
-    parseSequenceOf(ctx, s, 'Device Log Entries', parseDeviceLogEntry)
+    parseSequenceOf(ctx, s, `${indent}Device Log Entries`, parseDeviceLogEntry)
   }
 }
 
-export function parseDeviceLogEntry(ctx: Context, x: Slice) {
-  const s = parseSequence(ctx, x, 'Device Log Entry')
-  parseDerOctetString(ctx, s, 'Device Id')
-  parseDeviceType(ctx, s)
+export function parseDeviceLogEntry(ctx: Context, x: Slice, name: string) {
+  const s = parseSequence(ctx, x, `${name}Device Log Entry`)
+  const indent = (name.match(/^ */)?.[0] ?? '') + ' '
+  parseDerOctetString(ctx, s, `${indent}Device Id`)
+  parseDeviceType(ctx, s, indent)
 }
 
 // CCS08
 
 export function parseFirmwareTransferAlert(ctx: Context, x: Slice) {
   const s = parseSequence(ctx, x, 'Firmware Transfer Alert')
-  parseAsn1AlertCode(ctx, s)
-  parseGeneralizedTime(ctx, s, 'Execution Date Time')
-  parseDerOctetString(ctx, s, 'Entity Id')
-  parseDerOctetString(ctx, s, 'Firmware Version')
-  parseInteger(ctx, s, 'Response Code', {
+  const indent = ' '
+  parseAsn1AlertCode(ctx, s, indent)
+  parseGeneralizedTime(ctx, s, `${indent}Execution Date Time`)
+  parseDerOctetString(ctx, s, `${indent}Entity Id`)
+  parseDerOctetString(ctx, s, `${indent}Firmware Version`)
+  parseInteger(ctx, s, `${indent}Response Code`, {
     0: 'Success',
     1: 'Image Discarded',
     2: 'Hardeware Version Mismatch',
@@ -332,8 +368,9 @@ export function parseReadPPMIDHCALCSFirmwareVersionResponse(
   x: Slice
 ) {
   const s = parseSequence(ctx, x, 'Read Device Join Details Response')
-  parseDerOctetString(ctx, s, 'Firmware Version')
-  parseInteger(ctx, s, 'Response Code', {
+  const indent = ' '
+  parseDerOctetString(ctx, s, `${indent}Firmware Version`)
+  parseInteger(ctx, s, `${indent}Response Code`, {
     0: 'Read Success',
     1: 'Read Failure',
   })
@@ -344,23 +381,30 @@ export function parseReadPPMIDHCALCSFirmwareVersionAlert(
   x: Slice
 ) {
   const s = parseSequence(ctx, x, 'Read PPMID/HCALCS Firmware Version')
-  parseAsn1AlertCode(ctx, s)
-  parseGeneralizedTime(ctx, s, 'Execution Date Time')
-  parseDerOctetString(ctx, s, 'Firmware Version')
-  parseInteger(ctx, s, 'Activate image', { 0: 'Success', 1: 'Failure' })
+  const indent = ' '
+  parseAsn1AlertCode(ctx, s, indent)
+  parseGeneralizedTime(ctx, s, `${indent}Execution Date Time`)
+  parseDerOctetString(ctx, s, `${indent}Firmware Version`)
+  parseInteger(ctx, s, `${indent}Activate image`, {
+    0: 'Success',
+    1: 'Failure',
+  })
 }
+
 // GCS28
 
 export function parseSetTimeCommand(ctx: Context, x: Slice) {
   const s = parseSequence(ctx, x, 'Set Time Command')
-  parseGeneralizedTime(ctx, s, 'Validity Interval Start')
-  parseGeneralizedTime(ctx, s, 'Validity Interval End')
+  const indent = ' '
+  parseGeneralizedTime(ctx, s, `${indent}Validity Interval Start`)
+  parseGeneralizedTime(ctx, s, `${indent}Validity Interval End`)
 }
 
 export function parseSetTimeResponse(ctx: Context, x: Slice) {
   const s = parseSequence(ctx, x, 'Set Time Response')
-  parseGeneralizedTime(ctx, s, 'Device Time')
-  parseInteger(ctx, s, 'Device Time Status', {
+  const indent = ' '
+  parseGeneralizedTime(ctx, s, `${indent}Device Time`)
+  parseInteger(ctx, s, `${indent}Device Time Status`, {
     0: 'Reliable',
     1: 'Invalid',
     2: 'Unreliable',
@@ -371,17 +415,25 @@ export function parseSetTimeResponse(ctx: Context, x: Slice) {
 
 export function parseGpfDeviceLogRestoreCommand(ctx: Context, x: Slice) {
   const s = parseSequence(ctx, x, 'GPF Device Log Restore Command')
-  parseSequenceOf(ctx, s, 'Device Log Entries', parseDeviceLogEntry)
+  const indent = ' '
+  parseSequenceOf(ctx, s, `${indent}Device Log Entries`, parseDeviceLogEntry)
 }
 
 export function parseGpfDeviceLogRestoreResponse(ctx: Context, x: Slice) {
   const s = parseSequence(ctx, x, 'GPF Device Log Restore Response')
-  parseSequenceOf(ctx, s, 'Restore Outcomes', parseGpfDeviceLogRestoreOutcome)
+  const indent = ' '
+  parseSequenceOf(
+    ctx,
+    s,
+    `${indent}Restore Outcomes`,
+    parseGpfDeviceLogRestoreOutcome
+  )
 }
 
-function parseGpfDeviceLogRestoreOutcome(ctx: Context, x: Slice) {
-  const s = parseSequence(ctx, x, 'Restore Outcome')
-  parseDeviceLogEntry(ctx, s)
+function parseGpfDeviceLogRestoreOutcome(ctx: Context, x: Slice, name: string) {
+  const s = parseSequence(ctx, x, `${name}Restore Outcome`)
+  const indent = (name.match(/^ */)?.[0] ?? '') + ' '
+  parseDeviceLogEntry(ctx, s, indent)
   const joinResponseCodes = {
     0: 'Success',
     1: 'Invalid Message Code for Join Method and Role',
@@ -396,22 +448,23 @@ function parseGpfDeviceLogRestoreOutcome(ctx: Context, x: Slice) {
     10: 'Key Agreement Bad Key Confirm',
     11: 'Invalid or Missing Certificate',
   }
-  parseInteger(ctx, s, 'Join Response Code', joinResponseCodes)
+  parseInteger(ctx, s, `${indent}Join Response Code`, joinResponseCodes)
 }
 
 // GCS62
 
 export function parseGpfDeviceLogBackupAlert(ctx: Context, x: Slice) {
   const s = parseSequence(ctx, x, 'GPF Device Log Backup Alert')
-  parseAsn1AlertCode(ctx, s)
-  parseGeneralizedTime(ctx, s, 'Backup Date Time')
-  parseSequenceOf(ctx, s, 'Device Log Entries', parseDeviceLogEntry)
+  const indent = ' '
+  parseAsn1AlertCode(ctx, s, indent)
+  parseGeneralizedTime(ctx, s, `${indent}Backup Date Time`)
+  parseSequenceOf(ctx, s, `${indent}Device Log Entries`, parseDeviceLogEntry)
 }
 
 // GBCS ASN.1 definitions used by multiple use cases
 
-function parseDeviceType(ctx: Context, x: Slice) {
-  parseInteger(ctx, x, ' Device Type', {
+function parseDeviceType(ctx: Context, x: Slice, indent: string) {
+  parseInteger(ctx, x, `${indent}Device Type`, {
     0: 'GSME',
     1: 'ESME',
     2: 'CHF',
@@ -423,13 +476,14 @@ function parseDeviceType(ctx: Context, x: Slice) {
 }
 
 function parseTrustAnchorCellIdentifier(ctx: Context, x: Slice, name: string) {
+  const indent = (name.match(/^ */)?.[0] ?? '') + ' '
   const s = parseSequence(ctx, x, name)
-  parseRemotePartyRole(ctx, s)
-  parseKeyUsage(ctx, s)
-  parseCellUsage(ctx, s)
+  parseRemotePartyRole(ctx, s, indent)
+  parseKeyUsage(ctx, s, indent)
+  parseCellUsage(ctx, s, indent)
 }
 
-function parseRemotePartyRole(ctx: Context, x: Slice) {
+function parseRemotePartyRole(ctx: Context, x: Slice, name: string) {
   const values = {
     0: 'Root',
     1: 'Recovery',
@@ -441,10 +495,10 @@ function parseRemotePartyRole(ctx: Context, x: Slice) {
     7: 'Issuing Authority',
     127: 'Other',
   }
-  parseInteger(ctx, x, '  Remote Party Role', values)
+  parseInteger(ctx, x, `${name}Remote Party Role`, values)
 }
 
-function parseKeyUsage(ctx: Context, x: Slice) {
+function parseKeyUsage(ctx: Context, x: Slice, indent: string) {
   const bits: Record<number, string> = {
     0: 'Digital Signature',
     4: 'Key Agreement',
@@ -462,25 +516,20 @@ function parseKeyUsage(ctx: Context, x: Slice) {
       }
     }
   }
-  putBytes(ctx, '  Key Usage', getBytes(x, 2 + length), notes)
+  putBytes(ctx, `${indent}Key Usage`, getBytes(x, 2 + length), notes)
 }
 
 // CellUsage ::= INTEGER { management (0), prePaymentTopUp (1) } DEFAULT management
-function parseCellUsage(ctx: Context, x: Slice) {
+function parseCellUsage(ctx: Context, x: Slice, indent: string) {
   if (
     x.index + 2 < x.end &&
     x.input[x.index] === 2 &&
     x.input[x.index + 1] === 1 &&
     x.input[x.index + 2] === 1
   ) {
-    putBytes(ctx, '  Cell Usage', getBytes(x, 3), 'Prepayment Top Up')
+    putBytes(ctx, `${indent}Cell Usage`, getBytes(x, 3), 'Prepayment Top Up')
   } else {
-    putBytes(
-      ctx,
-      '  Cell Usage',
-      { input: new Uint8Array(), index: 0, end: 0 },
-      'Management (DEFAULT)'
-    )
+    putBytes(ctx, `${indent}Cell Usage`, getBytes(x, 0), 'Management (DEFAULT)')
   }
 }
 
@@ -491,7 +540,11 @@ function parseSeqNumber(ctx: Context, x: Slice, name: string) {
   putBytes(ctx, name, bytes, getDecimalString(value))
 }
 
-function parseCredentialsReplacementMode(ctx: Context, x: Slice) {
+function parseCredentialsReplacementMode(
+  ctx: Context,
+  x: Slice,
+  indent: string
+) {
   const values = {
     2: 'Supplier by Supplier',
     3: 'Network Operator by Network Operator',
@@ -502,16 +555,21 @@ function parseCredentialsReplacementMode(ctx: Context, x: Slice) {
     8: 'Any Except Abnormal Root by Recovery',
     9: 'Any by Contingency',
   }
-  parseInteger(ctx, x, ' Credentials Replacement Mode', values)
+  parseInteger(ctx, x, `${indent}Credentials Replacement Mode`, values)
 }
 
-function parseAuthorisingRemotePartyControl(ctx: Context, x: Slice) {
-  const s = parseSequence(ctx, x, 'Authorising Remote Party Control')
-  parseCredentialsReplacementMode(ctx, s)
+function parseAuthorisingRemotePartyControl(
+  ctx: Context,
+  x: Slice,
+  indent: string
+) {
+  const s = parseSequence(ctx, x, `${indent}Authorising Remote Party Control`)
+  indent = indent + ' '
+  parseCredentialsReplacementMode(ctx, s, indent)
   if (isPresent(s, 0x80))
-    parseDerOctetString(ctx, s, ' Plaintext Symmetric Key')
+    parseDerOctetString(ctx, s, `${indent}Plaintext Symmetric Key`)
   if (isPresent(s, 0x81))
-    parseInteger(ctx, s, ' Apply Time Based CPV Checks', {
+    parseInteger(ctx, s, `${indent}Apply Time Based CPV Checks`, {
       0: 'Apply',
       1: 'Disapply',
     })
@@ -519,55 +577,58 @@ function parseAuthorisingRemotePartyControl(ctx: Context, x: Slice) {
     parseTrustAnchorCellIdentifier(
       ctx,
       s,
-      ' Authorising Remote Party TA Cell Identifier'
+      `${indent}Authorising Remote Party TA Cell Identifier`
     )
-  parseSeqNumber(ctx, s, ' Authorising Remote Party Seq Number')
+  parseSeqNumber(ctx, s, `${indent}Authorising Remote Party Seq Number`)
   if (isPresent(s, 0x84))
-    parseSeqNumber(ctx, s, ' New Remote Party Floor Seq Number')
+    parseSeqNumber(ctx, s, `${indent}New Remote Party Floor Seq Number`)
   if (isPresent(s, 0xa5))
     parseSequenceOf(
       ctx,
       s,
-      ' New Remote Party Specialist Floor Seq Number',
+      `${indent}New Remote Party Specialist Floor Seq Number`,
       parseSpecialistSeqNumber
     )
   if (isPresent(s, 0xa6))
     parseSequenceOf(
       ctx,
       s,
-      ' Other Remote Party Seq Number Changes',
+      `${indent}Other Remote Party Seq Number Changes`,
       parseRemotePartySeqNumberChange
     )
 }
 
-function parseSpecialistSeqNumber(ctx: Context, x: Slice) {
-  const s = parseSequence(ctx, x, '  Specialist Seq Number')
-  parseInteger(ctx, s, '   Seq Number Usage', { 0: 'Prepayment Top Up' })
-  parseSeqNumber(ctx, s, '   Seq Number')
+function parseSpecialistSeqNumber(ctx: Context, x: Slice, name: string) {
+  const s = parseSequence(ctx, x, `${name}Specialist Seq Number`)
+  const indent = (name.match(/^ */)?.[0] ?? '') + ' '
+  parseInteger(ctx, s, `${indent}Seq Number Usage`, { 0: 'Prepayment Top Up' })
+  parseSeqNumber(ctx, s, `${indent}Seq Number`)
 }
 
-function parseRemotePartySeqNumberChange(ctx: Context, x: Slice) {
-  const s = parseSequence(ctx, x, ' Remote Party Seq Number Change')
-  parseRemotePartyRole(ctx, s)
-  parseSeqNumber(ctx, s, '  Floor Seq Number')
+function parseRemotePartySeqNumberChange(ctx: Context, x: Slice, name: string) {
+  const s = parseSequence(ctx, x, `${name}Remote Party Seq Number Change`)
+  const indent = (name.match(/^ */)?.[0] ?? '') + ' '
+  parseRemotePartyRole(ctx, s, indent)
+  parseSeqNumber(ctx, s, `${indent}Floor Seq Number`)
   if (isPresent(s, 0x30))
     parseSequenceOf(
       ctx,
       s,
-      '  Specialist Floor Seq Number',
+      `${indent}Specialist Floor Seq Number`,
       parseSpecialistSeqNumber
     )
 }
 
-function parseTrustAnchorReplacement(ctx: Context, x: Slice) {
-  const s = parseSequence(ctx, x, 'Trust Anchor Replacement')
-  parseCertificate(ctx, s)
-  parseTrustAnchorCellIdentifier(ctx, s, ' Target Trust Anchor Cell')
+function parseTrustAnchorReplacement(ctx: Context, x: Slice, name: string) {
+  const s = parseSequence(ctx, x, `${name}Trust Anchor Replacement`)
+  const indent = (name.match(/^ */)?.[0] ?? '') + ' '
+  parseCertificate(ctx, s, indent)
+  parseTrustAnchorCellIdentifier(ctx, s, `${indent}Target Trust Anchor Cell`)
 }
 
 // StatusCode ::= ENUMERATED { success (0), ... }
 // Used in the CS02a and CS02b responses
-function parseStatusCode(ctx: Context, x: Slice) {
+function parseStatusCode(ctx: Context, x: Slice, indent: string) {
   const values = {
     0: 'Success',
     5: 'Bad Certificate',
@@ -577,13 +638,13 @@ function parseStatusCode(ctx: Context, x: Slice) {
     30: 'Resources Busy',
     127: 'Other',
   }
-  parseEnumerated(ctx, x, ' Status Code', values)
+  parseEnumerated(ctx, x, `${indent}Status Code`, values)
 }
 
 export function parseCertificate(ctx: Context, x: Slice, name?: string) {
   const lenSz = parseLength(x, 1)
   const size = 1 + lenSz.size + lenSz.length
-  putBytes(ctx, name ?? ' Certificate', getBytes(x, size))
+  putBytes(ctx, name ?? 'Certificate', getBytes(x, size))
 }
 
 // ASN.1 Types
@@ -598,11 +659,14 @@ function parseSequenceOf(
   ctx: Context,
   x: Slice,
   name: string,
-  parse: (ctx: Context, x: Slice) => void
+  parse: (ctx: Context, x: Slice, name: string) => void
 ) {
+  const indent = name.match(/^ */)?.[0] ?? ''
   const s = parseSequence(ctx, x, name)
+  let i = 0
   while (s.index < s.end) {
-    parse(ctx, s)
+    parse(ctx, s, `${indent} [${i}] `)
+    i++
   }
 }
 
@@ -618,13 +682,13 @@ function parseInteger(
   putBytes(ctx, name, getBytes(x, 2 + length), values?.[value] ?? String(value))
 }
 
-function parseAsn1AlertCode(ctx: Context, x: Slice) {
+function parseAsn1AlertCode(ctx: Context, x: Slice, indent: string) {
   let alertCode = 0
   const length = x.input[x.index + 1]
   alertCode = parseNumber(x, length, 2)
   putBytes(
     ctx,
-    'Alert Code',
+    `${indent}Alert Code`,
     getBytes(x, 2 + length),
     getAlertCodeName(alertCode)
   )

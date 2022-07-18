@@ -60,7 +60,10 @@ export type DecryptCB = (cipherInfo: CipherInfo, aesKey: KeyObject) => void
 export interface Context {
   lookupKey: KeyStore
   output: ParsedMessage
-  current: (ParsedBlock | ParsedItem)[]
+  current: (
+    | ParsedBlock
+    | ParsedItem
+  )[] /* internal state, should not be touched outside of this file */
   decryptionList: DecryptCB[]
 }
 
@@ -70,7 +73,10 @@ export function putSeparator(ctx: Context, title: string) {
     depth: 0,
     children: {},
   }
-  ctx.current.push(sep)
+  if (title in ctx.output) {
+    throw new Error(`overwrite output ${title}`)
+  }
+  ctx.current = [sep]
   ctx.output[title] = sep
 }
 
@@ -92,10 +98,7 @@ export function putBytes(
   }
 
   const result = name.match(/^ */)
-  if (result === null) {
-    throw new Error('could not determine depth')
-  }
-  const depth = result[0].length + 1
+  const depth = (result?.[0].length ?? 0) + 1
   const item: ParsedItem = {
     type: 'ITEM',
     depth,
@@ -108,9 +111,20 @@ export function putBytes(
     ctx.current.pop()
   }
 
+  if (
+    depth > 1 &&
+    (ctx.current[ctx.current.length - 1].type === 'SEPARATOR' ||
+      depth !== ctx.current[ctx.current.length - 1].depth + 1)
+  ) {
+    throw new Error(`incorrect nesting ${name}`)
+  }
+
   const parent = ctx.current[ctx.current.length - 1]
   if (parent.children === undefined) {
     parent.children = {}
+  }
+  if (name.trimStart() in parent.children) {
+    throw new Error(`overwrite output ${name}`)
   }
   parent.children[name.trimStart()] = item
   ctx.current.push(item)
@@ -118,6 +132,6 @@ export function putBytes(
 
 export function putUnparsedBytes(bytes: Slice) {
   if (bytes.end - bytes.index > 0) {
-    throw new Error(`Unexpected data ${bytes}`)
+    throw new Error(`unexpected data ${bytes}`)
   }
 }

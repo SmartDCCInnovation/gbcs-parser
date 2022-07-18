@@ -553,12 +553,15 @@ export const alertCodes: Record<number, string> = {
 export const getAlertCodeName = (alertCode: number) => alertCodes[alertCode]
 
 export function toHex(number: number, bits: number): string {
+  if (bits <= 0 || bits % 4 !== 0) {
+    throw new Error('bits out of range')
+  }
   return (
     '0x' +
     (number + Math.pow(2, bits))
       .toString(16)
       .toUpperCase()
-      .substr(-bits / 4)
+      .slice(-bits / 4)
   )
 }
 
@@ -570,7 +573,8 @@ export function parseHexString(text: string): Slice {
     if ((c > 47 && c < 58) || (c > 64 && c < 71) || (c > 96 && c < 103)) {
       c = text.charCodeAt(i + 1)
       if ((c > 47 && c < 58) || (c > 64 && c < 71) || (c > 96 && c < 103)) {
-        bytes[length++] = parseInt(text.substr(i++, 2), 16)
+        bytes[length++] = parseInt(text.slice(i, i + 2), 16)
+        i++
       }
     }
   }
