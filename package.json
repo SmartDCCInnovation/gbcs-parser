@@ -2,9 +2,17 @@
   "name": "@smartdcc/gbcs-parser",
   "version": "0.0.2",
   "description": "GBCS parser based on henrygiraldo.github.io",
-  "homepage": "https://github.com/SmartDCCInnovation/gbcs-parser",
+  "bugs": {
+    "url": "https://github.com/SmartDCCInnovation/gbcs-parser/issues"
+  },
+  "homepage": "https://github.com/SmartDCCInnovation/gbcs-parser#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SmartDCCInnovation/gbcs-parser.git"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "type": "commonjs",
   "devDependencies": {
     "@tsconfig/node14": "^1.0.3",
     "@types/glob": "^7.2.0",
