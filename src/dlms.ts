@@ -247,26 +247,31 @@ export function parseDlmsMeterIntegrityIssueWarningAlert(
   parseMeterIntegrityIssueWarning(ctx, x, indent + ' ')
 }
 
-function parseProtectionParameters(ctx: Context, x: Slice) {
-  putBytes(ctx, 'Protection Parameters', getBytes(x, 4))
-  parseDlmsEnum(ctx, x, ' Protection Type', true, {
+function parseProtectionParameters(ctx: Context, x: Slice, indent: string) {
+  putBytes(ctx, `${indent}Protection Parameters`, getBytes(x, 4))
+  parseDlmsEnum(ctx, x, `${indent} Protection Type`, true, {
     2: 'Authentication and Encryption',
   })
-  putBytes(ctx, ' Protection Options', getBytes(x, 2))
+  putBytes(ctx, `${indent} Protection Options`, getBytes(x, 2))
   const cipherInfo: CipherInfo = {
     origCounter: x.input.subarray(x.index + 3, x.index + 11),
     origSysTitle: x.input.subarray(x.index + 13, x.index + 21),
     recipSysTitle: x.input.subarray(x.index + 23, x.index + 31),
   }
-  putBytes(ctx, ' Transaction Id', getBytes(x, 11))
-  putBytes(ctx, ' Originator System Title', getBytes(x, 10))
-  putBytes(ctx, ' Recipient System Title', getBytes(x, 10))
-  putBytes(ctx, ' Other Information', getBytes(x, 2))
-  putBytes(ctx, ' Key Info', getBytes(x, 2))
-  parseDlmsEnum(ctx, x, '  Key Info Type', true, { 2: 'Agreed Key' })
-  putBytes(ctx, '  Agreed Key Info Options', getBytes(x, 2))
-  putBytes(ctx, '   Key Parameters', getBytes(x, 3), 'C(0e, 2s ECC CDH)')
-  putBytes(ctx, '   Key Ciphered Data', getBytes(x, 2))
+  putBytes(ctx, `${indent} Transaction Id`, getBytes(x, 11))
+  putBytes(ctx, `${indent} Originator System Title`, getBytes(x, 10))
+  putBytes(ctx, `${indent} Recipient System Title`, getBytes(x, 10))
+  putBytes(ctx, `${indent} Other Information`, getBytes(x, 2))
+  putBytes(ctx, `${indent} Key Info`, getBytes(x, 2))
+  parseDlmsEnum(ctx, x, `${indent}  Key Info Type`, true, { 2: 'Agreed Key' })
+  putBytes(ctx, `${indent}  Agreed Key Info Options`, getBytes(x, 2))
+  putBytes(
+    ctx,
+    `${indent}   Key Parameters`,
+    getBytes(x, 3),
+    'C(0e, 2s ECC CDH)'
+  )
+  putBytes(ctx, `${indent}   Key Ciphered Data`, getBytes(x, 2))
   return cipherInfo
 }
 
@@ -286,7 +291,8 @@ function parseDlmsProtectedAttributesResponse(
 }
 
 function parseDlmsProtectedData(ctx: Context, x: Slice, indent: string) {
-  /*const cipherInfo = */ parseProtectionParameters(ctx, x)
+  indent = indent + ' '
+  /*const cipherInfo = */ parseProtectionParameters(ctx, x, indent)
   const lenSz = parseLength(x, 1)
   const len = lenSz.length
   const off = lenSz.size + 1
@@ -319,7 +325,8 @@ function parseDlmsSequenceOf(
 }
 
 function parseDlmsData(ctx: Context, x: Slice, name?: string) {
-  const indent = name?.match(/^ */)?.[0] ?? ''
+  name = name ?? ''
+  const indent = name.match(/^ */)?.[0]
   const choice = x.input[x.index]
   if (choice === 0) {
     putBytes(ctx, `${name}Null`, getBytes(x, 1))
