@@ -165,3 +165,188 @@ describe('putUnparsedBytes', () => {
     }).toThrow('unexpected data')
   })
 })
+
+describe('minimizeItem', () => {
+  test('flat', () => {
+    const pi: context.ParsedItem = {
+      depth: 3,
+      type: 'ITEM',
+      hex: '11 22 33',
+    }
+    expect(context.minimizeItem(pi)).toStrictEqual({
+      hex: '11 22 33',
+    })
+  })
+
+  test('flat-notes-undefined', () => {
+    const pi: context.ParsedItem = {
+      depth: 3,
+      type: 'ITEM',
+      hex: '11 22 33',
+      notes: undefined,
+    }
+    expect(context.minimizeItem(pi)).toStrictEqual({
+      hex: '11 22 33',
+    })
+  })
+
+  test('flat-notes', () => {
+    const pi: context.ParsedItem = {
+      depth: 3,
+      type: 'ITEM',
+      hex: '11 22 33',
+      notes: 'a note',
+    }
+    expect(context.minimizeItem(pi)).toStrictEqual({
+      hex: '11 22 33',
+      notes: 'a note',
+    })
+  })
+
+  test('flat-empty-children', () => {
+    const pi: context.ParsedItem = {
+      depth: 3,
+      type: 'ITEM',
+      hex: '11 22 33',
+      children: {},
+    }
+    expect(context.minimizeItem(pi)).toStrictEqual({
+      hex: '11 22 33',
+    })
+  })
+
+  test('recursive', () => {
+    const pi: context.ParsedItem = {
+      depth: 3,
+      type: 'ITEM',
+      hex: '11 22 33',
+      children: {
+        key1: {
+          depth: 3,
+          type: 'ITEM',
+          hex: 'aa',
+          notes: "aa's notes",
+        },
+        key2: {
+          depth: 3,
+          type: 'ITEM',
+          hex: 'bb',
+        },
+      },
+    }
+    expect(context.minimizeItem(pi)).toStrictEqual({
+      hex: '11 22 33',
+      children: {
+        key1: {
+          hex: 'aa',
+          notes: "aa's notes",
+        },
+        key2: {
+          hex: 'bb',
+        },
+      },
+    })
+  })
+})
+
+describe('minimizeBlock', () => {
+  test('flat', () => {
+    const pb: context.ParsedBlock = {
+      depth: 3,
+      type: 'SEPARATOR',
+      children: {},
+    }
+    expect(context.minimizeBlock(pb)).toStrictEqual({})
+  })
+
+  test('nominal', () => {
+    const pb: context.ParsedBlock = {
+      depth: 0,
+      type: 'SEPARATOR',
+      children: {
+        key1: {
+          depth: 1,
+          type: 'ITEM',
+          hex: '00 11',
+        },
+        key2: {
+          depth: 1,
+          type: 'ITEM',
+          hex: '22 33',
+        },
+      },
+    }
+    expect(context.minimizeBlock(pb)).toStrictEqual({
+      key1: {
+        hex: '00 11',
+      },
+      key2: {
+        hex: '22 33',
+      },
+    })
+  })
+})
+
+describe('minimizeMessage', () => {
+  test('flat', () => {
+    const pm: context.ParsedMessage = {}
+    expect(context.minimizeMessage(pm)).toStrictEqual({})
+  })
+
+  test('nominal', () => {
+    const pm: context.ParsedMessage = {
+      block1: {
+        depth: 0,
+        type: 'SEPARATOR',
+        children: {
+          key1: {
+            depth: 1,
+            type: 'ITEM',
+            hex: '00 11',
+          },
+          key2: {
+            depth: 1,
+            type: 'ITEM',
+            hex: '22 33',
+          },
+        },
+      },
+      block2: {
+        depth: 0,
+        type: 'SEPARATOR',
+        children: {
+          key3: {
+            depth: 1,
+            type: 'ITEM',
+            hex: '44 55 66',
+          },
+          key4: {
+            depth: 1,
+            type: 'ITEM',
+            hex: '66 77 88 99',
+            notes: 'notes',
+          },
+        },
+      },
+    }
+    expect(context.minimizeMessage(pm)).toStrictEqual({
+      block1: {
+        key1: {
+          hex: '00 11',
+        },
+        key2: {
+          hex: '22 33',
+        },
+      },
+      block2: {
+        key3: {
+          hex: '44 55 66',
+        },
+        key4: {
+          hex: '66 77 88 99',
+          notes: 'notes',
+        },
+      },
+    })
+  })
+})

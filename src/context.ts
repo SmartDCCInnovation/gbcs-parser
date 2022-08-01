@@ -135,3 +135,55 @@ export function putUnparsedBytes(bytes: Slice) {
     throw new Error(`unexpected data ${bytes}`)
   }
 }
+
+export interface MinimizedParsedItem {
+  hex: string
+  notes?: string
+  children?: { [key: string]: MinimizedParsedItem }
+}
+export interface MinimizedParsedBlock {
+  [key: string]: MinimizedParsedItem
+}
+export interface MinimizedParsedMessage {
+  [key: string]: MinimizedParsedBlock
+}
+
+export function minimizeItem({
+  hex,
+  notes,
+  children,
+}: ParsedItem): MinimizedParsedItem {
+  const result: MinimizedParsedItem = {
+    hex,
+  }
+  if (notes) {
+    result.notes = notes
+  }
+  if (children && Object.keys(children).length >= 1) {
+    result.children = Object.fromEntries(
+      Object.keys(children).map((k) => [k, minimizeItem(children[k])])
+    )
+  }
+  return result
+}
+
+export function minimizeBlock({ children }: ParsedBlock): MinimizedParsedBlock {
+  return Object.fromEntries(
+    Object.keys(children).map((k) => [k, minimizeItem(children[k])])
+  )
+}
+
+/**
+ * Removes files from ParsedMessage structure that are only relevant for
+ * internal use.
+ *
+ * @param message
+ * @returns
+ */
+export function minimizeMessage(
+  message: ParsedMessage
+): MinimizedParsedMessage {
+  return Object.fromEntries(
+    Object.keys(message).map((k) => [k, minimizeBlock(message[k])])
+  )
+}

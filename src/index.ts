@@ -18,4 +18,10 @@
  */
 
 export { parseGbcsMessage } from './parser'
-export { KeyStore, ParsedMessage, ParsedBlock, ParsedItem } from './context'
+export {
+  KeyStore,
+  ParsedMessage,
+  ParsedBlock,
+  ParsedItem,
+  minimizeMessage,
+} from './context'
