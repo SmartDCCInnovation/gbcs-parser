@@ -25,3 +25,4 @@ export {
   ParsedItem,
   minimizeMessage,
 } from './context'
+export { signGroupingHeader } from './crypto'

@@ -34,8 +34,9 @@ import {
   createPublicKey,
   createSecretKey,
   KeyObject,
+  sign,
 } from 'crypto'
-import { CipherInfo, Context } from './context'
+import { CipherInfo, Context, KeyStore } from './context'
 import { Slice } from './util'
 
 export function decryptPayloadWithKey(
@@ -115,4 +116,36 @@ export function decryptGbcsData(
   ctx.decryptionList.push(function (cipherInfo: CipherInfo, aesKey: KeyObject) {
     decryptPayloadWithKey(cipherInfo, ciphertextAndTag, aesKey, okCallback)
   })
+}
+
+/**
+ * Sign the output of transform, result is a base64 encoded string.
+ *
+ * @param originatorId originator id used to lookup key
+ * @param payload base64 encoded gbcs message
+ * @param keyStore
+ * @
+ */
+export async function signGroupingHeader(
+  originatorId: string,
+  payload: string,
+  keyStore: KeyStore
+): Promise<string> {
+  const signersKey = await keyStore(originatorId, 'DS', true)
+  const tbs = Buffer.from(payload, 'base64')
+  if (tbs.length === 0 || tbs[0] !== 0xdf) {
+    throw new Error('not general signing apdu')
+  }
+  /*
+   * from green book. should also remove last byte as it will be replaced with
+   * signature but Boxed does not currently follow specification
+   */
+  const signature = sign('SHA256', tbs.subarray(1), {
+    key: signersKey,
+    dsaEncoding: 'ieee-p1363',
+  })
+  if (signature.length !== 64) {
+    throw new Error('unexpected signature length')
+  }
+  return Buffer.concat([tbs, Buffer.from([64]), signature]).toString('base64')
 }
