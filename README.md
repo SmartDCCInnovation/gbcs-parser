@@ -57,7 +57,7 @@ function removeNotBoxedEntries<T extends { role?: number; name?: string }>({
   )
 }
 
-const keystore = new BoxedKeyStore(
+const keystore = await BoxedKeyStore.new(
     '1.2.3.4', /* ip address of dcc boxed */
 )
 
@@ -70,7 +70,7 @@ export async function LocalKeyStore(
   privateKey?: boolean
 ): Promise<KeyObject> {
   if (privateKey) {
-    let results = await server.keyStore.query({
+    let results = await keyStore.query({
       eui,
       keyUsage:
         type === 'DS' ? KeyUsage.digitalSignature : KeyUsage.keyAgreement,
@@ -81,7 +81,7 @@ export async function LocalKeyStore(
       return results[0].privateKey
     }
   } else {
-    let results = await server.keyStore.query({
+    let results = await keyStore.query({
       eui,
       keyUsage:
         type === 'DS' ? KeyUsage.digitalSignature : KeyUsage.keyAgreement,
@@ -198,7 +198,7 @@ This could produce the following:
 
 ## Other Info
 
-Copyright 2022, Smart DCC Limited, All rights reserved. Project is licensed under GLPv3.
+Copyright 2022, Smart DCC Limited, All rights reserved. Project is licensed under GPLv3.
 
 Also, copyright for the original work remains with
 [HenryGiraldo/gbcs-parser-js][gbcs-parser-js].
