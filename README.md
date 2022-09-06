@@ -1,5 +1,10 @@
 # GBCS Parser
 
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Tests](https://github.com/SmartDCCInnovation/gbcs-parser/actions/workflows/node.yml/badge.svg?branch=main&event=push)](https://github.com/SmartDCCInnovation/gbcs-parser/actions/workflows/node.yml)
+[![codecov](https://codecov.io/gh/SmartDCCInnovation/gbcs-parser/branch/main/graph/badge.svg?token=5GEBFQP778)](https://codecov.io/gh/SmartDCCInnovation/gbcs-parser)
+[![GitHub version](https://badge.fury.io/gh/SmartDCCInnovation%2Fgbcs-parser.svg)](https://badge.fury.io/gh/SmartDCCInnovation%2Fgbcs-parser)
+
 Tool based on [HenryGiraldo/gbcs-parser-js][gbcs-parser-js], which is a super
 useful browser based [GBCS][gbcs] parser. It has been uplifted to use TypeScript
 and output JSON instead of performing DOM manipulations. In addition, to allow
@@ -16,6 +21,12 @@ JSON instead of filling a HTML tabl.
 ## Usage
 
 Please note, developed against `node 16` and makes use of its `crypto` api.
+
+Install from `npm`:
+
+```
+npm i @smartdcc/gbcs-parser
+```
 
 The library exposes a few high-level functions that are intended to be used
 externally. This includes:
@@ -195,6 +206,24 @@ This could produce the following:
 ```
 3wkBAAABgoNAlH0IkLPVHzABAAAIvDOs//76VT0AAgBibNkgQJR9AAUCAAgAAAEAAP8JAwAIAAABAAD/BQMACAAAAQAA/wQBAAgAAAEAAP8CAQAIAAABAAD/BAUWBQIDCQz///////////+AAP8JDAfeDB//FzsKAIAA/wkMB98BAf8AAAoAgAD/DwAAAECKdRM+cYyVimzkVv9VdaEneMRUTTtP8O8e0IPakREPLfqgx4CDHzYGmPSzhQ+3PxIz9v8hD3N4cv73SIv8p9Gx
 ```
+
+## Contributing
+
+Contributions are welcome!
+
+When submitting a pull request, please ensure:
+
+  1. Each PR is concise and provides only one feature/bug fix.
+  2. Unit test are provided to cover feature. The project uses `jest`. To test,
+     run `npm run test:cov` to view code coverage metrics.
+  3. Bugfixes are reference the GitHub issue.
+  4. If appropriate, update documentation.
+  5. Before committing, run `npm run lint` and `npm run prettier-check`.
+
+If you are planning a new non-trivial feature, please first raise a GitHub issue
+to discuss it to before investing your time to avoid disappointment.
+
+Any contributions will be expected to be licensable under GPLv3.
 
 ## Other Info
 
