@@ -1,0 +1,149 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+      - dccboxed-*
+      - validation
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - dccboxed-*
+
+jobs:
+  format:
+    name: Check Formatting
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Select reviewdog reporter
+      id: get-reporter
+      run: |
+        if test "${{ github.event_name }}" = "pull_request"; then
+          echo "::set-output name=reporter::github-pr-review"
+        else
+          echo "::set-output name=reporter::github-check"
+        fi
+    - name: Run prettier with reviewdog
+      uses: EPMatt/reviewdog-action-prettier@v1
+      with:
+        github_token: ${{ secrets.github_token }}
+        reporter: ${{ steps.get-reporter.outputs.reporter }}
+        level: error
+        prettier_flags: src/**/*.{css,html,ts,json,md,yaml,yml}
+        fail_on_error: true
+    - name: Run prettier (catch all)
+      if: github.event_name == 'pull_request'
+      run: npm run prettier-check
+
+  lint:
+    name: Check Static Errors
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install reviewdog
+      uses: reviewdog/action-setup@v1
+      with:
+        reviewdog_version: latest
+    - name: Select reviewdog reporter
+      id: get-reporter
+      run: |
+        if test "${{ github.event_name }}" = "pull_request"; then
+          echo "::set-output name=reporter::github-pr-review"
+        else
+          echo "::set-output name=reporter::github-check"
+        fi
+    - name: Set up NodeJS 16
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+    - name: Install dependencies
+      run: npm ci
+    - name: Run eslint with reviewdog
+      env:
+        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: npm run lint | reviewdog -f=eslint -reporter=${{ steps.get-reporter.outputs.reporter }} -fail-on-error 
+    - name: Run prettier (catch all)
+      if: github.event_name == 'pull_request'
+      run: npm run lint
+
+  test:
+    name: Run Tests on NodeJS ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [ 16, 18 ]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install reviewdog
+      uses: reviewdog/action-setup@v1
+      with:
+        reviewdog_version: latest
+    - name: Select reviewdog reporter
+      id: get-reporter
+      run: |
+        if test "${{ github.event_name }}" = "pull_request"; then
+          echo "::set-output name=reporter::github-pr-review"
+        else
+          echo "::set-output name=reporter::github-check"
+        fi
+    - name: Set up NodeJS ${{ matrix.node }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node }}
+    - name: Install dependencies
+      run: npm ci
+    - name: Run tests
+      run: npm run test:cov
+    - name: Upload coverage to Codecov
+      if: matrix.node == '16' && (github.event_name != 'push' || github.ref_type != 'tag' || !startsWith(github.ref_name, 'v'))
+      uses: codecov/codecov-action@v3
+
+  release:
+    name: Upload Release Package
+    if: github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+    needs:
+    - format
+    - lint
+    - test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up NodeJS 16
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+    - name: Install dependencies
+      run: npm ci
+    - name: Build package
+      run: npm pack
+    - name: Extract version from package.json
+      uses: sergeysova/jq-action@v2
+      id: version
+      with:
+        cmd: 'jq .version package.json -r'
+    - name: Check package version
+      run: |
+        version=$(echo ${{ github.ref_name }} | cut -c2-)
+        if test "${version}" = "${{ steps.version.outputs.value }}"; then
+          echo "version ok"
+        else
+          echo "Error: tag ${{ github.ref_name }} and package version ${version} do not match" 1>&2
+          exit 1
+        fi
+    - name: Upload binaries to release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: smartdcc-*tgz
+        file_glob: true
+        tag: ${{ github.ref }}
+        overwrite: true
+        body: "Release ${{ github.ref_name }}"
+    - uses: JS-DevTools/npm-publish@v1
+      with:
+        token: ${{ secrets.NPM_PUBLISH_TOKEN }}
+        access: public
