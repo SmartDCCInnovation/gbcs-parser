@@ -36,7 +36,9 @@
     "start": "ts-node src/index.ts",
     "prebuild": "del dist/**/*",
     "build": "tsc",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "lint": "eslint src/",
+    "prettier-check": "prettier -c  \"src/**/*.{css,html,ts,json,md,yaml,yml}\""
   },
   "files": [
     "dist",
