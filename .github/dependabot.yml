@@ -1,16 +1,16 @@
 version: 2
 updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: github-actions
+    directory: /
     schedule:
-      interval: "daily"
+      interval: daily
     assignees:
-      - "kazkansouh"
+      - kazkansouh
 
   - package-ecosystem: npm
-    directory: "/"
+    directory: /
     schedule:
       interval: daily
     open-pull-requests-limit: 10
     assignees:
-      - "kazkansouh"
+      - kazkansouh
