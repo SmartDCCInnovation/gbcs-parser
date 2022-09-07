@@ -7,16 +7,20 @@
 
 Tool based on [HenryGiraldo/gbcs-parser-js][gbcs-parser-js], which is a super
 useful browser based [GBCS][gbcs] parser. It has been uplifted to use TypeScript
-and output JSON instead of performing DOM manipulations. In addition, to allow
-running from NodeJS the crypto API was exchanged for the NodeJS [Crypto
+and output JSON instead of performing DOM manipulations so it can be used in
+NodeJS. As a result, the use of the cryptographic functions in the original
+version have been swapped over for crypto API provided by NodeJS [Crypto
 API][crypto].
 
 The parser is aimed at being used with [DCC Boxed][boxed], so does not need full
-coverage of GBCS. As such, support for GBT has been removed. It has been lightly
-tested against `RTDS 4.5.0` (Reference Test Data Set). Further, the parser has
-been tweaked to provide more slightly more structured parsed data as it returns
-JSON instead of filling a HTML tabl.
-
+coverage of GBCS. Tht is, it is intended to be used from *service user*
+perspective which needs to parse the GBCS payloads made available through DUIS.
+As such, support for GBT (i.e. segmented messages) has been removed. It has been
+lightly tested against `RTDS 4.5.0` (Reference Test Data Set). Further, the
+parser has been tweaked to provide more slightly more structured parsed data as
+it returns JSON instead of filling a HTML table. Please see the
+[example](#parse-message) below to show how a message is parsed and typical
+output.
 
 ## Usage
 
