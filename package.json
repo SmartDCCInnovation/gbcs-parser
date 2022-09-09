@@ -52,5 +52,15 @@
   "engines": {
     "node": ">=16.0.0"
   },
-  "license": "GPL-3.0-or-later"
+  "license": "GPL-3.0-or-later",
+  "keywords": [
+    "gbcs",
+    "backend",
+    "smartdcc",
+    "smartmeter",
+    "smets2",
+    "dlms",
+    "zigbee",
+    "zse"
+  ]
 }
