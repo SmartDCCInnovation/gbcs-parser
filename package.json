@@ -1,6 +1,6 @@
 {
   "name": "@smartdcc/gbcs-parser",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "description": "GBCS parser based on henrygiraldo.github.io",
   "bugs": {
     "url": "https://github.com/SmartDCCInnovation/gbcs-parser/issues"
