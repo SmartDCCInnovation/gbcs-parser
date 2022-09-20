@@ -116,7 +116,7 @@ async function parseGeneralSigning(
     const signature = s.input.subarray(s.index, s.end)
     putBytes(ctx, 'Signature', s)
 
-    const pubKey = await ctx.lookupKey(cipherInfo.origSysTitle, 'DS', false)
+    const pubKey = await ctx.lookupKey(cipherInfo.origSysTitle, 'DS', {})
     const valid = verify(
       'SHA256',
       dataToSign,
@@ -333,8 +333,10 @@ async function handleDecryptGbcsData(
   cipherInfo: CipherInfo,
   lookupKey: KeyStore
 ): Promise<void> {
-  const pubKey = await lookupKey(cipherInfo.origSysTitle, 'KA', false)
-  const prvKey = await lookupKey(cipherInfo.recipSysTitle, 'KA', true)
+  const pubKey = await lookupKey(cipherInfo.origSysTitle, 'KA', {})
+  const prvKey = await lookupKey(cipherInfo.recipSysTitle, 'KA', {
+    privateKey: true,
+  })
 
   const aesKey = deriveKeyFromPair(prvKey, pubKey, cipherInfo)
 

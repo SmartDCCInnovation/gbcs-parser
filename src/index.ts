@@ -26,3 +26,4 @@ export {
   minimizeMessage,
 } from './context'
 export { signGroupingHeader } from './crypto'
+export { utrn, PtutOptions } from './utrn'

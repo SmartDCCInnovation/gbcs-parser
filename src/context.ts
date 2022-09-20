@@ -52,7 +52,10 @@ export interface ParsedMessage {
 export type KeyStore = (
   eui: string | Uint8Array,
   type: 'KA' | 'DS',
-  privateKey?: boolean
+  options: {
+    privateKey?: boolean
+    prePayment?: boolean
+  }
 ) => Promise<KeyObject>
 
 export type DecryptCB = (cipherInfo: CipherInfo, aesKey: KeyObject) => void

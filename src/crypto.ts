@@ -27,6 +27,7 @@
 
 import { assert } from 'console'
 import {
+  createCipheriv,
   createDecipheriv,
   createECDH,
   createHash,
@@ -38,6 +39,37 @@ import {
 } from 'crypto'
 import { CipherInfo, Context, KeyStore } from './context'
 import { Slice } from './util'
+
+/**
+ * standard gcm for use with GBCS - sets the cipher size and fixes the iv
+ *
+ * @param cipherInfo - originator/target/counter from grouping header
+ * @param plainText - text to encrypt - set as empty buffer if none
+ * @param aad - additional auth data - set as empty buffer if none
+ * @param aesKey - output from createSecretKey
+ * @param authTagLength - tag length in bytes - default is 12
+ * @returns
+ */
+export function gcm(
+  cipherInfo: CipherInfo,
+  plainText: Uint8Array,
+  aad: Uint8Array,
+  aesKey: KeyObject,
+  authTagLength?: number
+): { cipherText: Uint8Array; tag: Uint8Array } {
+  const iv = new Uint8Array(12)
+  iv.set(cipherInfo.origSysTitle, 0)
+  iv.set([0, 0, 0, 0], 8)
+
+  const cipher = createCipheriv('aes-128-gcm', aesKey, iv, {
+    authTagLength: authTagLength ?? 12,
+  })
+  cipher.setAAD(aad)
+  const cipherText = cipher.update(plainText)
+  cipher.final()
+  const tag = cipher.getAuthTag()
+  return { cipherText, tag }
+}
 
 export function decryptPayloadWithKey(
   cipherInfo: CipherInfo,
@@ -62,10 +94,20 @@ export function decryptPayloadWithKey(
   doneCb(yy)
 }
 
+/**
+ * performs kdf as described in section 4 of GBCS
+ *
+ * @param privkey
+ * @param pubkey
+ * @param cipherInfo
+ * @param mode tweaks the otherInfo field, if omitted "encryption"
+ * @returns
+ */
 export function deriveKeyFromPair(
   privkey: string | KeyObject,
   pubkey: string | KeyObject,
-  cipherInfo: CipherInfo
+  cipherInfo: CipherInfo,
+  mode?: 'command' | 'response' | 'alert' | 'encryption'
 ) {
   if (typeof privkey === 'string') {
     privkey = createPrivateKey({ key: privkey, format: 'pem' })
@@ -73,6 +115,10 @@ export function deriveKeyFromPair(
 
   if (typeof pubkey === 'string') {
     pubkey = createPublicKey({ key: pubkey, format: 'pem' })
+  }
+
+  if (!mode) {
+    mode = 'encryption'
   }
 
   assert(privkey.asymmetricKeyType === 'ec', 'expected ec private key')
@@ -90,7 +136,21 @@ export function deriveKeyFromPair(
   const otherInfo = new Uint8Array(33)
   otherInfo.set([0x60, 0x85, 0x74, 0x06, 0x08, 0x03, 0x00], 0) // algorithm-id
   otherInfo.set(cipherInfo.origSysTitle, 7)
-  otherInfo.set([0x09, 0x04], 7 + 8)
+  otherInfo.set([0x09], 7 + 8)
+  switch (mode) {
+    case 'command':
+      otherInfo.set([0x01], 7 + 8 + 1)
+      break
+    case 'response':
+      otherInfo.set([0x02], 7 + 8 + 1)
+      break
+    case 'alert':
+      otherInfo.set([0x03], 7 + 8 + 1)
+      break
+    case 'encryption':
+      otherInfo.set([0x04], 7 + 8 + 1)
+      break
+  }
   otherInfo.set(cipherInfo.origCounter, 7 + 8 + 2)
   otherInfo.set(cipherInfo.recipSysTitle, 7 + 8 + 2 + 8)
 
@@ -131,7 +191,7 @@ export async function signGroupingHeader(
   payload: string,
   keyStore: KeyStore
 ): Promise<string> {
-  const signersKey = await keyStore(originatorId, 'DS', true)
+  const signersKey = await keyStore(originatorId, 'DS', { privateKey: true })
   const tbs = Buffer.from(payload, 'base64')
   if (tbs.length === 0 || tbs[0] !== 0xdf) {
     throw new Error('not general signing apdu')
