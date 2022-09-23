@@ -17,8 +17,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { createPrivateKey, createPublicKey, createSecretKey } from 'crypto'
+import {
+  createPrivateKey,
+  createPublicKey,
+  createSecretKey,
+  verify,
+} from 'crypto'
 import { CipherInfo } from '../src/context'
+import { keyStore } from './dummy-keystore'
 import * as crypto from '../src/crypto'
 
 const device_00db1234567890a0_ka_cert = `\
@@ -80,6 +86,19 @@ MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgQIg5kNpbNy3E7JbH
 a1dr9dQgbjv9NMv2C2JEjx+bpUShRANCAASSdP/4o69W1rAW06j6YNo+V5VR6ylY
 GcgOt6Q/MHIrIlUEKF5KUXa5YzTbty6gz8DJxuQKCuPCiTfDQljw6EC6
 -----END PRIVATE KEY-----`
+
+const org_90b3d51f30010000_ds_cert = `\
+-----BEGIN CERTIFICATE-----
+MIIBrDCCAVKgAwIBAgIQT7xSUgGh11hsG8HEc03rnzAKBggqhkjOPQQDAjAaMQsw
+CQYDVQQLEwIwNzELMAkGA1UEAxMCWjEwHhcNMTUxMDMwMDAwMDAwWhcNMjUxMDI5
+MjM1OTU5WjA7MRgwFgYDVQQDDA9HSVRURVNUU1VQUExJRVIxCzAJBgNVBAsMAjAy
+MRIwEAYDVQQtAwkAkLPVHzABAAAwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQw
+wqtaDRMXJv+9qA55KUzDdTRDKj5CRAW5ejq6D/x53OcpslF1Y8t9lYJ+TFC0jLo9
+h9WJPFG5bYfDReNxf4weo1kwVzAOBgNVHQ8BAf8EBAMCB4AwEQYDVR0OBAoECESJ
+l5LRlvS4MB0GA1UdIAEB/wQTMBEwDwYNKoY6AAGEj7kPAQIBBDATBgNVHSMEDDAK
+gAhPVojX7JM74jAKBggqhkjOPQQDAgNIADBFAiEA39CQ51c+r1+oLhqn242f7VEY
+ObV1LVXRAJHyUP3xiiICIF637Dax9BM+UVV9M7WcSe9rvRDpqksdzZKOZbPprdHF
+-----END CERTIFICATE-----`
 
 describe('deriveKeyFromPair', () => {
   test('is defined', () => {
@@ -271,5 +290,70 @@ describe('gcm', () => {
       cipherText: Buffer.from('584fa806b24491178829d46c38', 'hex'),
       tag: Buffer.from('6b33bdcb1e223242ec20b957', 'hex'),
     })
+  })
+})
+
+describe('signGroupingHeader', () => {
+  test('is defined', () => {
+    expect(crypto.signGroupingHeader).toBeDefined()
+  })
+
+  test('empty', () => {
+    const message = Buffer.from('')
+    return expect(
+      crypto.signGroupingHeader(
+        '90B3D51F30010000',
+        message.toString('base64'),
+        keyStore
+      )
+    ).rejects.toThrow()
+  })
+
+  test('bad-payload', () => {
+    const message = Buffer.from('hello world')
+    return expect(
+      crypto.signGroupingHeader(
+        '90B3D51F30010000',
+        message.toString('base64'),
+        keyStore
+      )
+    ).rejects.toThrow()
+  })
+
+  test('nominal', async () => {
+    const message = Buffer.from(
+      `
+      DF 09 01 00 00 00 00 00 00 03 E9 08 90 B3 D5 1F
+      30 01 00 00 08 00 DB 12 34 56 78 90 A0 00 02 00
+      62 6C D9 20 00 03 E9 00 05 02 00 08 00 00 01 00
+      00 FF 09 03 00 08 00 00 01 00 00 FF 05 03 00 08
+      00 00 01 00 00 FF 04 01 00 08 00 00 01 00 00 FF
+      02 01 00 08 00 00 01 00 00 FF 04 05 16 05 02 03
+      09 0C FF FF FF FF FF FF FF FF FF 80 00 FF 09 0C
+      07 DE 0C 1F FF 17 3B 0A 00 80 00 FF 09 0C 07 DF
+      01 01 FF 00 00 0A 00 80 00 FF 0F 00 00 00`.replace(/[ \n\t]/g, ''),
+      'hex'
+    )
+    const signed = await crypto.signGroupingHeader(
+      '90B3D51F30010000',
+      message.toString('base64'),
+      keyStore
+    )
+    const signedBuffer = Buffer.from(signed, 'base64')
+    expect(signedBuffer.length).toBe(message.length + 1 + 64)
+    const signature = signedBuffer.subarray(-64)
+    expect(signature.length).toBe(64)
+
+    expect(
+      verify(
+        'SHA256',
+        message.subarray(1),
+        {
+          key: createPublicKey(org_90b3d51f30010000_ds_cert),
+          dsaEncoding: 'ieee-p1363',
+        },
+        signature
+      )
+    ).toBeTruthy()
   })
 })
