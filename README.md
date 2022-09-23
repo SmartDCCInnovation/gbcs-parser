@@ -22,6 +22,11 @@ it returns JSON instead of filling a HTML table. Please see the
 [example](#parse-message) below to show how a message is parsed and typical
 output.
 
+Additional features have been added, which include:
+
+* [Sign `Pre-Commands` messages](#sign-message)
+* Generate UTRN tokens
+
 ## Usage
 
 Please note, developed against `node 16` and makes use of its `crypto` api.
@@ -38,6 +43,7 @@ externally. This includes:
 * `parseGbcsMessage`
 * `minimizeMessage`
 * `signGroupingHeader`
+* `utrn`
 
 In addition, to use the `parseGbcsMessage` and `signGroupingHeader` functions a
 key store needs to be provided. The makes available either digital signature or
@@ -56,42 +62,47 @@ can be extended as needed.
 
 ```typescript
 import { KeyObject } from 'node:crypto'
-import { BoxedKeyStore } from '@smartdcc/dccboxed-keystore'
+import { BoxedKeyStore, KeyUsage } from '@smartdcc/dccboxed-keystore'
 
 /**
  * used to filter certificates/keys that are not needed
  */
-function removeNotBoxedEntries<T extends { role?: number; name?: string }>({
-  role,
-  name,
-}: T): boolean {
-  return (
+function removeNotBoxedEntries<T extends { role?: number; name?: string }>(
+  prepayment: boolean
+): ({ role, name }: T) => boolean {
+  return ({ role, name }: T) =>
     role !== 135 &&
     (name === undefined ||
-      name.match(/Z1-[a-zA-Z0-9]+(?!PP)[a-zA-Z0-9]{2}-/) !== null)
-  )
+      (prepayment && name.match(/^Z1-[a-zA-Z0-9]+PP-/) !== null) ||
+      (!prepayment &&
+        name.match(/^Z1-[a-zA-Z0-9]+(?!PP)[a-zA-Z0-9]{2}-/) !== null))
 }
 
-const keystore = await BoxedKeyStore.new(
+const keyStore = await BoxedKeyStore.new(
     '1.2.3.4', /* ip address of dcc boxed */
 )
 
 /**
  * define callback
  */
-export async function LocalKeyStore(
+async function LocalKeyStore(
   eui: string | Uint8Array,
   type: 'KA' | 'DS',
-  privateKey?: boolean
+  options: {
+    privateKey?: boolean
+    prePayment?: boolean
+  }
 ): Promise<KeyObject> {
-  if (privateKey) {
+  if (options.privateKey) {
     let results = await keyStore.query({
       eui,
       keyUsage:
         type === 'DS' ? KeyUsage.digitalSignature : KeyUsage.keyAgreement,
       lookup: 'privateKey',
     })
-    results = (results ?? []).filter(removeNotBoxedEntries)
+    results = (results ?? []).filter(
+      removeNotBoxedEntries(options.prePayment ?? false)
+    )
     if (results.length === 1) {
       return results[0].privateKey
     }
@@ -102,13 +113,17 @@ export async function LocalKeyStore(
         type === 'DS' ? KeyUsage.digitalSignature : KeyUsage.keyAgreement,
       lookup: 'certificate',
     })
-    results = (results ?? []).filter(removeNotBoxedEntries)
+    results = (results ?? []).filter(
+      removeNotBoxedEntries(options.prePayment ?? false)
+    )
     if (results.length === 1) {
       return results[0].certificate.publicKey
     }
   }
   throw new Error(
-    `${privateKey ? 'private' : 'public'} key not found for ${eui} for ${type}`
+    `${options.privateKey ? 'private' : 'public'} key ${
+      options.prePayment ? '(prepayment)' : ''
+    } not found for ${eui} for ${type}`
   )
 }
 ```
@@ -210,6 +225,27 @@ This could produce the following:
 ```
 3wkBAAABgoNAlH0IkLPVHzABAAAIvDOs//76VT0AAgBibNkgQJR9AAUCAAgAAAEAAP8JAwAIAAABAAD/BQMACAAAAQAA/wQBAAgAAAEAAP8CAQAIAAABAAD/BAUWBQIDCQz///////////+AAP8JDAfeDB//FzsKAIAA/wkMB98BAf8AAAoAgAD/DwAAAECKdRM+cYyVimzkVv9VdaEneMRUTTtP8O8e0IPakREPLfqgx4CDHzYGmPSzhQ+3PxIz9v8hD3N4cv73SIv8p9Gx
 ```
+
+### Generate UTRN
+
+To generate a UTRN, see the following example:
+
+```typescript
+import { utrn } from './src/index'
+
+const token = utrn({
+  counter: BigInt(0x100000000) /* low 32 bit should be zero */,
+  lookupKey: LocalKeyStore,
+  originator: '90B3D51F30010000',
+  target: 'BC-33-AC-FF-FE-FA-55-3D',
+  value: 150,
+  valueClass: 'pennies',
+})
+
+console.log(await token)
+```
+
+Which would then output a token of the form `73942983744751930738`.
 
 ## Contributing
 
