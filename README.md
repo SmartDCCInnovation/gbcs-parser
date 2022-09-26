@@ -25,7 +25,7 @@ output.
 Additional features have been added, which include:
 
 * [Sign `Pre-Commands` messages](#sign-message)
-* Generate UTRN tokens
+* [Generate UTRN tokens](#generate-utrn)
 
 ## Usage
 
