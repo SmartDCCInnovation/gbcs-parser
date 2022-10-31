@@ -261,7 +261,7 @@ export function parseUnjoinDeviceCommand(ctx: Context, x: Slice) {
 
 export function parseUnjoindDeviceResponse(ctx: Context, x: Slice) {
   parseInteger(ctx, x, 'Response Code', {
-    0: 'Succes',
+    0: 'Success',
     1: 'Not in Device Log',
     2: 'Other Failure',
   })
@@ -349,7 +349,7 @@ export function parseFirmwareTransferAlert(ctx: Context, x: Slice) {
   parseInteger(ctx, s, `${indent}Response Code`, {
     0: 'Success',
     1: 'Image Discarded',
-    2: 'Hardeware Version Mismatch',
+    2: 'Hardware Version Mismatch',
     3: 'File Transfer Failure',
   })
 }
