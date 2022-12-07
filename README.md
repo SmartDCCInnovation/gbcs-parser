@@ -209,8 +209,12 @@ The interested reader is suggested to compare this with the output of
 
 ### Sign Message
 
-The library also provides support for signing GBCS pre-commands. The current
-implementation is aligned with DCC&nbsp;Boxed. To sign a message, use the following:
+The library provides support for signing GBCS pre-commands. The current
+implementation allows for either a null or omitted signature in the pre-command,
+this is to provide flexibility to be compatible with early versions of
+DCC&nbsp;Boxed which deviated from the DUIS standard. The correct interpretation
+of DUIS is to require pre-commands to have a null signature, i.e. a `null` byte.
+To sign a message, use the following:
 
 ```typescript
 import { signGroupingHeader } from '@smartdcc/gbcs-parser'
