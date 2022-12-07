@@ -38,7 +38,8 @@ import {
   sign,
 } from 'crypto'
 import { CipherInfo, Context, KeyStore } from './context'
-import { Slice } from './util'
+import { parseGbcsMessage } from './parser'
+import { Slice, Uint8ArrayWrapper } from './util'
 
 /**
  * standard gcm for use with GBCS - sets the cipher size and fixes the iv
@@ -87,7 +88,7 @@ export function decryptPayloadWithKey(
   const plaintext = decipher.update(ciphertextTag.subarray(0, -12))
   decipher.final()
   const yy: Slice = {
-    input: new Uint8Array(plaintext),
+    input: new Uint8ArrayWrapper(new Uint8Array(plaintext)),
     index: 0,
     end: plaintext.byteLength,
   }
@@ -192,14 +193,24 @@ export async function signGroupingHeader(
   keyStore: KeyStore
 ): Promise<string> {
   const signersKey = await keyStore(originatorId, 'DS', { privateKey: true })
-  const tbs = Buffer.from(payload, 'base64')
+  let tbs = Buffer.from(payload, 'base64')
   if (tbs.length === 0 || tbs[0] !== 0xdf) {
     throw new Error('not general signing apdu')
   }
   /*
-   * from green book. should also remove last byte as it will be replaced with
-   * signature but Boxed does not currently follow specification
+   * From green book. should also remove last byte as it will be replaced with
+   * signature but Boxed < 1.4.1 does not currently follow specification. To
+   * support this, first parse the message to determine if the signature is
+   * present.
    */
+  const message = await parseGbcsMessage(payload, keyStore)
+  if ('Signature' in message) {
+    if (message['Signature'].children['Signature Length']?.hex !== '00') {
+      throw new Error('already signed')
+    }
+    tbs = tbs.subarray(0, -1)
+  }
+
   const signature = sign('SHA256', tbs.subarray(1), {
     key: signersKey,
     dsaEncoding: 'ieee-p1363',

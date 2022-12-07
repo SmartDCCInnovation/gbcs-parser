@@ -25,8 +25,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+export class Uint8ArrayWrapper {
+  constructor(readonly buffer: Uint8Array) {}
+
+  byte(i: number): number {
+    if (i >= 0 && i < this.buffer.length) {
+      return this.buffer[i]
+    }
+    throw new Error('out of bounds')
+  }
+
+  get length() {
+    return this.buffer.length
+  }
+
+  toString(): string {
+    return this.buffer.toString()
+  }
+}
+
 export interface Slice {
-  input: Uint8Array
+  input: Uint8ArrayWrapper
   index: number
   end: number
 }
@@ -579,17 +598,20 @@ export function parseHexString(text: string): Slice {
     }
   }
   bytes = bytes.subarray(0, length)
-  return { input: bytes, index: 0, end: length }
+  return { input: new Uint8ArrayWrapper(bytes), index: 0, end: length }
 }
 
 export function parseBase64String(text: string): Slice {
   const bytes = Buffer.from(text, 'base64')
-  return { input: bytes, index: 0, end: bytes.length }
+  return { input: new Uint8ArrayWrapper(bytes), index: 0, end: bytes.length }
 }
 
 export function getBytes(x: Slice, n: number): Slice {
   const y = { input: x.input, index: x.index, end: x.index + n }
   x.index += n
+  if (x.index > x.end) {
+    throw new Error('slice out of bounds')
+  }
   return y
 }
 
@@ -597,7 +619,7 @@ export function getDecimalString(x: Slice) {
   const value64 = [0, 0]
   const fixedPoint = 1000000000000
   for (let i = x.index; i < x.end; i++) {
-    const lsb = value64[0] * 256 + x.input[i]
+    const lsb = value64[0] * 256 + x.input.byte(i)
     const msb = value64[1] * 256 + Math.floor(lsb / fixedPoint)
     value64[0] = Math.floor(lsb % fixedPoint)
     value64[1] = msb

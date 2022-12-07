@@ -129,7 +129,7 @@ function parseDlmsAccessRequestSpecification(
 ) {
   const indent = idx.match(/^ */)?.[0] ?? ''
   idx = idx.trimStart()
-  const choice = x.input[x.index]
+  const choice = x.input.byte(x.index)
   if (choice === 1) {
     putBytes(
       ctx,
@@ -175,7 +175,7 @@ function parseDlmsAccessResponseSpecification(
 ) {
   const indent = idx.match(/^ */)?.[0] ?? ''
   idx = idx.trimStart()
-  const choice = x.input[x.index]
+  const choice = x.input.byte(x.index)
   if (choice === 1) {
     putBytes(
       ctx,
@@ -254,9 +254,9 @@ function parseProtectionParameters(ctx: Context, x: Slice, indent: string) {
   })
   putBytes(ctx, `${indent} Protection Options`, getBytes(x, 2))
   const cipherInfo: CipherInfo = {
-    origCounter: x.input.subarray(x.index + 3, x.index + 11),
-    origSysTitle: x.input.subarray(x.index + 13, x.index + 21),
-    recipSysTitle: x.input.subarray(x.index + 23, x.index + 31),
+    origCounter: x.input.buffer.subarray(x.index + 3, x.index + 11),
+    origSysTitle: x.input.buffer.subarray(x.index + 13, x.index + 21),
+    recipSysTitle: x.input.buffer.subarray(x.index + 23, x.index + 31),
   }
   putBytes(ctx, `${indent} Transaction Id`, getBytes(x, 11))
   putBytes(ctx, `${indent} Originator System Title`, getBytes(x, 10))
@@ -281,7 +281,7 @@ function parseDlmsProtectedAttributesResponse(
   name?: string
 ) {
   const indent = (name ?? '').match(/^ */)?.[0] ?? ''
-  if (x.input[x.index] !== 0x02 || x.input[x.index + 1] !== 0x02) {
+  if (x.input.byte(x.index) !== 0x02 || x.input.byte(x.index + 1) !== 0x02) {
     putBytes(ctx, `${indent}Get Protected Attributes Response`, getBytes(x, 0))
     parseDlmsData(ctx, x, indent + ' ')
   } else {
@@ -300,7 +300,7 @@ function parseDlmsProtectedData(ctx: Context, x: Slice, indent: string) {
   const y = getBytes(x, len)
   indent = indent + ' '
   putBytes(ctx, `${indent}Security Header`, getBytes(y, 5))
-  const ciphertextAndTag = y.input.subarray(y.index, y.index + len - 5)
+  const ciphertextAndTag = y.input.buffer.subarray(y.index, y.index + len - 5)
   putBytes(ctx, `${indent}Encrypted DLMS Payload`, getBytes(y, len - 5 - 12))
   putBytes(ctx, `${indent}AE MAC`, getBytes(y, 12))
 
@@ -317,7 +317,7 @@ function parseDlmsSequenceOf(
   parse: (ctx: Context, x: Slice, name: string) => void
 ) {
   const indent = name.match(/^ */)?.[0] ?? ''
-  const n = x.input[x.index]
+  const n = x.input.byte(x.index)
   putBytes(ctx, name, getBytes(x, 1))
   for (let i = 0; i < n; i++) {
     parse(ctx, x, `${indent} [${i}] `)
@@ -327,11 +327,11 @@ function parseDlmsSequenceOf(
 function parseDlmsData(ctx: Context, x: Slice, name?: string) {
   name = name ?? ''
   const indent = name.match(/^ */)?.[0]
-  const choice = x.input[x.index]
+  const choice = x.input.byte(x.index)
   if (choice === 0) {
     putBytes(ctx, `${name}Null`, getBytes(x, 1))
   } else if (choice === 1) {
-    const n = x.input[x.index + 1]
+    const n = x.input.byte(x.index + 1)
     putBytes(
       ctx,
       name + 'Array',
@@ -342,7 +342,7 @@ function parseDlmsData(ctx: Context, x: Slice, name?: string) {
       parseDlmsData(ctx, x, `${indent} [${i}] `)
     }
   } else if (choice === 2) {
-    const n = x.input[x.index + 1]
+    const n = x.input.byte(x.index + 1)
     putBytes(ctx, `${name}Structure`, getBytes(x, 2))
     for (let i = 0; i < n; i++) {
       parseDlmsData(ctx, x, `${indent} [${i}] `)
@@ -385,7 +385,7 @@ function parseDlmsBitString(
   hasTag: boolean
 ) {
   const offset = hasTag ? 1 : 0
-  let bitlen = x.input[x.index + offset]
+  let bitlen = x.input.byte(x.index + offset)
   let bytelen = 1
   if (bitlen === 0x81) {
     bitlen = parseNumber(x, 1, offset + 1)
@@ -398,7 +398,7 @@ function parseDlmsBitString(
   const contentlen = Math.floor((bitlen + 7) / 8)
   bytelen += contentlen
   const bytes = getBytes(x, offset + bytelen)
-  const str = bytes.input
+  const str = bytes.input.buffer
     .slice(bytes.end - contentlen, bytes.end)
     .reduce((acc, byte) => (acc += byte.toString(2).padStart(8, '0')), '')
     .substring(0, bitlen)
@@ -407,9 +407,9 @@ function parseDlmsBitString(
 
 function getDlmsDate(x: Slice, offset: number) {
   const year = parseNumber(x, 2, offset)
-  const month = x.input[x.index + offset + 2]
-  const dayOfMonth = x.input[x.index + offset + 3]
-  const dayOfWeek = x.input[x.index + offset + 4]
+  const month = x.input.byte(x.index + offset + 2)
+  const dayOfMonth = x.input.byte(x.index + offset + 3)
+  const dayOfWeek = x.input.byte(x.index + offset + 4)
 
   //Day
   let hday = ''
@@ -439,10 +439,10 @@ function getDlmsDate(x: Slice, offset: number) {
 }
 
 function getDlmsTime(x: Slice, offset: number) {
-  const hour = x.input[x.index + offset]
-  const mins = x.input[x.index + offset + 1]
-  const sec = x.input[x.index + offset + 2]
-  const hsec = x.input[x.index + offset + 3]
+  const hour = x.input.byte(x.index + offset)
+  const mins = x.input.byte(x.index + offset + 1)
+  const sec = x.input.byte(x.index + offset + 2)
+  const hsec = x.input.byte(x.index + offset + 3)
 
   let xhour = ''
   if (hour === 0xff) xhour = 'Every hour'
@@ -475,9 +475,9 @@ function getDlmsLongDate(x: Slice, offset: number) {
   }
 
   const dev = parseNumber(x, 2, offset + 9)
-  const clk = x.input[x.index + offset + 11]
+  const clk = x.input.byte(x.index + offset + 11)
   if (dev === 0x8000 && clk === 0xff) {
-    const dateTimeSlice = x.input.subarray(
+    const dateTimeSlice = x.input.buffer.subarray(
       x.index + offset,
       x.index + offset + 9
     )
@@ -514,7 +514,7 @@ export function parseDlmsOctetString(
   const len = lenSz.length
   let stringLike = true
   for (let i = 0; i < len; i++) {
-    const c = x.input[x.index + offset + lenSz.size + i]
+    const c = x.input.byte(x.index + offset + lenSz.size + i)
     if (c < 0x20 || c > 0x7e) {
       stringLike = false
       break
@@ -523,7 +523,9 @@ export function parseDlmsOctetString(
   let text: string | null = ''
   if (len > 1 && stringLike) {
     for (let i = 0; i < len; i++) {
-      text += String.fromCharCode(x.input[x.index + offset + lenSz.size + i])
+      text += String.fromCharCode(
+        x.input.byte(x.index + offset + lenSz.size + i)
+      )
     }
     text = '"' + text + '"'
   } else if (len === 4) {
@@ -545,7 +547,7 @@ function parseDlmsBoolean(
   hasTag: boolean
 ) {
   const offset = hasTag ? 1 : 0
-  const value = x.input[x.index + offset] ? 'True' : 'False'
+  const value = x.input.byte(x.index + offset) ? 'True' : 'False'
   putBytes(ctx, name, getBytes(x, offset + 1), value)
 }
 
@@ -664,7 +666,7 @@ function parseDlmsTypeDescription(
   x: Slice,
   name: string
 ): DlmsTypeDescription {
-  const choice = x.input[x.index]
+  const choice = x.input.byte(x.index)
   const indent = name.match(/^ */)?.[0] ?? ''
   if (choice === 1) {
     // array
@@ -679,7 +681,7 @@ function parseDlmsTypeDescription(
     return { choice, children: { number: numberOfElements, type: t } }
   } else if (choice === 2) {
     // structure
-    const n = x.input[x.index + 1]
+    const n = x.input.byte(x.index + 1)
     putBytes(ctx, `${name}Structure`, getBytes(x, 2))
     const typeDescription: DlmsTypeDescription = { choice, children: [] }
     for (let i = 0; i < n; i++) {
@@ -1069,17 +1071,17 @@ function parseDlmsCosemClassId(ctx: Context, x: Slice, indent: string) {
 
 function formatObis(x: Slice) {
   return (
-    x.input[x.index] +
+    x.input.byte(x.index) +
     '-' +
-    x.input[x.index + 1] +
+    x.input.byte(x.index + 1) +
     ':' +
-    x.input[x.index + 2] +
+    x.input.byte(x.index + 2) +
     '.' +
-    x.input[x.index + 3] +
+    x.input.byte(x.index + 3) +
     '.' +
-    x.input[x.index + 4] +
+    x.input.byte(x.index + 4) +
     '.' +
-    x.input[x.index + 5]
+    x.input.byte(x.index + 5)
   )
 }
 
@@ -1102,7 +1104,7 @@ function parseDlmsCosemAttributeId(
   indent: string,
   cosemClass: CosemClass
 ) {
-  const id = x.input[x.index]
+  const id = x.input.byte(x.index)
   const name = cosemClass.attributes[id - 2] || 'Attribute ' + id
   putBytes(ctx, `${indent}Attribute Id`, getBytes(x, 1), name)
 }
@@ -1113,7 +1115,7 @@ function parseDlmsCosemMethodId(
   indent: string,
   cosemClass: CosemClass
 ) {
-  const id = x.input[x.index]
+  const id = x.input.byte(x.index)
   const name = cosemClass.methods[id - 1] || 'Method ' + id
   putBytes(ctx, `${indent}Method Id`, getBytes(x, 1), name)
 }
@@ -1146,7 +1148,7 @@ function parseDlmsDataAccessResult(ctx: Context, x: Slice, indent: string) {
     19: 'Data Block Number Invalid',
     250: 'Other Reason',
   }
-  const value = x.input[x.index]
+  const value = x.input.byte(x.index)
   putBytes(
     ctx,
     `${indent}Data Access Result`,
@@ -1171,7 +1173,7 @@ function parseDlmsActionResult(ctx: Context, x: Slice, indent: string) {
     16: 'No Long Action in Progress',
     250: 'Other Reason',
   }
-  const value = x.input[x.index]
+  const value = x.input.byte(x.index)
   putBytes(ctx, `${indent}Action Result`, getBytes(x, 1), values[value] || '')
 }
 

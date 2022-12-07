@@ -34,7 +34,7 @@ export function parseNumber(x: Slice, size: number, offset?: number) {
   let value = 0
   for (let i = 0; i < size; i++) {
     value *= 0x100
-    value += x.input[x.index + offset + i]
+    value += x.input.byte(x.index + offset + i)
   }
   return value
 }
@@ -45,14 +45,14 @@ export function parseNumberLE(x: Slice, size: number, offset?: number) {
   let value = 0
   for (let i = size; i > 0; i--) {
     value *= 0x100
-    value += x.input[x.index + offset + i - 1]
+    value += x.input.byte(x.index + offset + i - 1)
   }
   return value
 }
 
 export function parseLength(x: Slice, offset?: number) {
   offset = offset ?? 0
-  let len = x.input[x.index + offset]
+  let len = x.input.byte(x.index + offset)
   let size = 1
   if (len & 0x80) {
     // Multi-byte length, limit to 3 bytes
@@ -95,7 +95,7 @@ export function parseMeterIntegrityIssueWarning(
 }
 
 export function parseCraFlag(ctx: Context, x: Slice, indent: string) {
-  const craFlag = x.input[x.index]
+  const craFlag = x.input.byte(x.index)
   putBytes(
     ctx,
     `${indent}CRA Flag`,
