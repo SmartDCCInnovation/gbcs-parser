@@ -96,7 +96,7 @@ export function putBytes(
     if (i > 0) {
       hex += ' '
     }
-    const b = bytes.input[bytes.index++]
+    const b = bytes.input.byte(bytes.index++)
     hex += h.charAt((b >> 4) & 15) + h.charAt(b & 15)
   }
 

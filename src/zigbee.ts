@@ -48,7 +48,7 @@ import {
 
 export function parseGbzPayload(ctx: Context, x: Slice) {
   putBytes(ctx, 'Profile ID', getBytes(x, 2))
-  const numberOfGbzComponents = x.input[x.index]
+  const numberOfGbzComponents = x.input.byte(x.index)
   putBytes(
     ctx,
     'Number of GBZ components',
@@ -92,7 +92,7 @@ export function parseGbzFutureDatedAlertPayload(ctx: Context, x: Slice) {
   parseMessageCode(ctx, 'Message Code', x)
   parseCounter(ctx, 'Originator Counter', x)
   const cluster = parseClusterId(ctx, x)
-  const frameControl = x.input[x.index]
+  const frameControl = x.input.byte(x.index)
   putBytes(ctx, 'Frame Control', getBytes(x, 1))
   parseCommandId(ctx, x, '', frameControl, cluster)
 }
@@ -122,7 +122,7 @@ function parseGbzAlertCode(ctx: Context, x: Slice) {
 }
 
 function parseGbzComponent(ctx: Context, x: Slice) {
-  const controlField = x.input[x.index]
+  const controlField = x.input.byte(x.index)
   if (controlField & 0x02) {
     putBytes(ctx, 'Control Field', getBytes(x, 1)) //, swapped)
   } else {
@@ -141,7 +141,7 @@ function parseGbzComponent(ctx: Context, x: Slice) {
     parseGbzTime(ctx, y, 'From Date Time')
   }
   // ZCL Header
-  const frameControl = y.input[y.index]
+  const frameControl = y.input.byte(y.index)
   putBytes(ctx, 'ZCL Header', getBytes(y, 0))
   putBytes(ctx, ' Frame Control', getBytes(y, 1))
   putBytes(ctx, ' Sequence Number', getBytes(y, 1))
@@ -151,7 +151,7 @@ function parseGbzComponent(ctx: Context, x: Slice) {
     const len = parseNumber(y, 2)
     putBytes(ctx, 'Ciphered Information Length', getBytes(y, 2), String(len))
     putBytes(ctx, 'Security Header', getBytes(y, 5))
-    const ciphertextAndTag = y.input.subarray(y.index, y.index + len - 5)
+    const ciphertextAndTag = y.input.buffer.subarray(y.index, y.index + len - 5)
     putBytes(ctx, 'Encrypted ZCL Payload', getBytes(y, len - 5 - 12))
     putBytes(ctx, 'AE MAC', getBytes(y, 12))
 
@@ -417,7 +417,7 @@ function parseCommandId(
   cluster: ZclCluster
 ) {
   let command: [string, ZclParse] | undefined = undefined
-  const commandId = x.input[x.index]
+  const commandId = x.input.byte(x.index)
   const frameType = frameControl & 3
   if (frameType === 0) {
     const profileCommands: Record<number, [string, ZclParse]> = {
@@ -472,7 +472,7 @@ function parseZclReadAttributesResponse({
     if (status === 0) {
       const typeName = `${indent2}Attribute Data Type`
       const valueName = `${indent2}Attribute Data Value`
-      const type = x.input[x.index]
+      const type = x.input.byte(x.index)
       if (type === 0x18) {
         putBytes(ctx, typeName, getBytes(x, 1), `BITMAP8`)
         parseZclBitmap(ctx, 8, x, valueName)
@@ -521,7 +521,7 @@ function parseZclDefaultResponse({
   indent,
 }: ZclParseOptions) {
   let command: [string, ZclParse] | undefined = undefined
-  const commandId = x.input[x.index]
+  const commandId = x.input.byte(x.index)
   const direction = frameControl & 8
   if (direction === 0) {
     command = cluster.responses[commandId]
@@ -1209,7 +1209,7 @@ function parseZclCalendarUint(
   name: string
 ) {
   const bytes = bits / 8 //useless
-  const calendarType = x.input[x.index]
+  const calendarType = x.input.byte(x.index)
   putBytes(ctx, name, getBytes(x, bytes), getCalendarTypeName(calendarType))
   return calendarType
 }
@@ -1222,10 +1222,10 @@ function parseZclInt32(ctx: Context, x: Slice, name: string) {
 }
 
 function parseZclOctetString(ctx: Context, x: Slice, name: string) {
-  const length = x.input[x.index]
+  const length = x.input.byte(x.index)
   let value = ''
   for (let i = 0; i < length; i++) {
-    value += String.fromCharCode(x.input[x.index + 1 + i])
+    value += String.fromCharCode(x.input.byte(x.index + 1 + i))
   }
   const printableValue = value.replace(/[^\x20-\x7E]/g, ' ')
   putBytes(ctx, name, getBytes(x, 1 + length), printableValue)
@@ -1257,7 +1257,7 @@ function getLogIdType(/*int*/ logIdType: number) {
 }
 
 function parseLogIdBitmap(ctx: Context, bits: number, x: Slice, name: string) {
-  const logIdType = x.input[x.index]
+  const logIdType = x.input.byte(x.index)
   putBytes(ctx, name, getBytes(x, bits / 8), getLogIdType(logIdType))
 }
 
@@ -1272,10 +1272,10 @@ function parseZclEnum(
 }
 
 function parseZclDate(ctx: Context, x: Slice, name: string) {
-  const year = x.input[x.index]
-  const month = x.input[x.index + 1]
-  const dayOfMonth = x.input[x.index + 2]
-  const dayOfWeek = x.input[x.index + 3]
+  const year = x.input.byte(x.index)
+  const month = x.input.byte(x.index + 1)
+  const dayOfMonth = x.input.byte(x.index + 2)
+  const dayOfWeek = x.input.byte(x.index + 3)
 
   //Day
   let hday: string
@@ -1342,7 +1342,7 @@ function toUtcTimeString(value: number) {
 function parseZclUtrn(ctx: Context, x: Slice, name: string) {
   let utrn = ''
   for (let i = 0; i < 20; i++)
-    utrn += String.fromCharCode(x.input[x.index + 1 + i])
+    utrn += String.fromCharCode(x.input.byte(x.index + 1 + i))
   const pptd = [
     0, 0,
   ] /* two 32-bit numbers [ least significat, most significant ] */
@@ -1415,7 +1415,7 @@ function parseZclStatusCode(ctx: Context, x: Slice, indent: string) {
     0xc1: 'Software Failure',
     0xc2: 'Calibration Error',
   }
-  const value = x.input[x.index]
+  const value = x.input.byte(x.index)
   const name = names[value] || ''
   putBytes(ctx, `${indent}Status Code`, getBytes(x, 1), name)
   return value

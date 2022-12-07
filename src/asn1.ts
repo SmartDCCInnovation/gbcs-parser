@@ -505,8 +505,8 @@ function parseKeyUsage(ctx: Context, x: Slice, indent: string) {
     5: 'Key Cert Sign',
     6: 'CRL Sign',
   }
-  const length = x.input[x.index + 1]
-  const bitstring = x.input[x.index + 3]
+  const length = x.input.byte(x.index + 1)
+  const bitstring = x.input.byte(x.index + 3)
   let notes = ''
   for (let i = 0; i < 8; i++) {
     if (bitstring & (0x80 >> i)) {
@@ -523,9 +523,9 @@ function parseKeyUsage(ctx: Context, x: Slice, indent: string) {
 function parseCellUsage(ctx: Context, x: Slice, indent: string) {
   if (
     x.index + 2 < x.end &&
-    x.input[x.index] === 2 &&
-    x.input[x.index + 1] === 1 &&
-    x.input[x.index + 2] === 1
+    x.input.byte(x.index) === 2 &&
+    x.input.byte(x.index + 1) === 1 &&
+    x.input.byte(x.index + 2) === 1
   ) {
     putBytes(ctx, `${indent}Cell Usage`, getBytes(x, 3), 'Prepayment Top Up')
   } else {
@@ -534,7 +534,7 @@ function parseCellUsage(ctx: Context, x: Slice, indent: string) {
 }
 
 function parseSeqNumber(ctx: Context, x: Slice, name: string) {
-  const length = x.input[x.index + 1]
+  const length = x.input.byte(x.index + 1)
   const bytes = getBytes(x, 2 + length)
   const value = { input: bytes.input, index: bytes.index + 2, end: bytes.end }
   putBytes(ctx, name, bytes, getDecimalString(value))
@@ -677,14 +677,14 @@ function parseInteger(
   values: Record<number, string>
 ) {
   let value = 0
-  const length = x.input[x.index + 1]
+  const length = x.input.byte(x.index + 1)
   value = parseNumber(x, length, 2)
   putBytes(ctx, name, getBytes(x, 2 + length), values?.[value] ?? String(value))
 }
 
 function parseAsn1AlertCode(ctx: Context, x: Slice, indent: string) {
   let alertCode = 0
-  const length = x.input[x.index + 1]
+  const length = x.input.byte(x.index + 1)
   alertCode = parseNumber(x, length, 2)
   putBytes(
     ctx,
@@ -709,10 +709,10 @@ function parseDerOctetString(ctx: Context, x: Slice, name: string) {
 }
 
 function parseGeneralizedTime(ctx: Context, x: Slice, name: string) {
-  const length = x.input[x.index + 1]
+  const length = x.input.byte(x.index + 1)
   let time = ''
   for (let i = 0; i < length; i++) {
-    const c = x.input[x.index + 2 + i]
+    const c = x.input.byte(x.index + 2 + i)
     if (i === 4 || i === 6) time += '-'
     else if (i === 8 || i === 14) time += ' '
     else if (i === 10 || i === 12) time += ':'
@@ -726,5 +726,5 @@ function parseNull(ctx: Context, x: Slice, name: string) {
 }
 
 function isPresent(x: Slice, tag: number) {
-  return x.index < x.end && x.input[x.index] === tag
+  return x.index < x.end && x.input.byte(x.index) === tag
 }

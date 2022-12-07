@@ -71,9 +71,9 @@ async function parseGeneralSigning(
   putBytes(ctx, 'General Signing', getBytes(x, 2))
   const craFlag = parseCraFlag(ctx, x, '')
   const cipherInfo: CipherInfo = {
-    origCounter: x.input.subarray(x.index, x.index + 8),
-    origSysTitle: x.input.subarray(x.index + 9, x.index + 17),
-    recipSysTitle: x.input.subarray(x.index + 18, x.index + 26),
+    origCounter: x.input.buffer.subarray(x.index, x.index + 8),
+    origSysTitle: x.input.buffer.subarray(x.index + 9, x.index + 17),
+    recipSysTitle: x.input.buffer.subarray(x.index + 18, x.index + 26),
   }
   parseCounter(ctx, 'Originator Counter', x)
   putBytes(ctx, 'Originator System Title', getBytes(x, 9))
@@ -83,7 +83,7 @@ async function parseGeneralSigning(
   const otherInfo = getBytes(x, otherInfoLen)
   const messageCode = parseMessageCode(ctx, ' Message Code', otherInfo)
   if (otherInfoLen >= 10) {
-    cipherInfo.recipSysTitle = otherInfo.input.subarray(
+    cipherInfo.recipSysTitle = otherInfo.input.buffer.subarray(
       otherInfo.index,
       otherInfo.index + 8
     )
@@ -91,7 +91,7 @@ async function parseGeneralSigning(
     if (otherInfoLen >= 18) {
       parseCounter(ctx, ' Supplementary Remote Party Counter', otherInfo)
       if (otherInfoLen === 26) {
-        cipherInfo.origCounter = otherInfo.input.subarray(
+        cipherInfo.origCounter = otherInfo.input.buffer.subarray(
           otherInfo.index,
           otherInfo.index + 8
         )
@@ -112,8 +112,8 @@ async function parseGeneralSigning(
   const signatureLen = parseEncodedLength(ctx, x, 'Signature Length')
   if (signatureLen > 0) {
     const s = getBytes(x, signatureLen)
-    const dataToSign = x.input.subarray(signedDataStart, signedDataEnd)
-    const signature = s.input.subarray(s.index, s.end)
+    const dataToSign = x.input.buffer.subarray(signedDataStart, signedDataEnd)
+    const signature = s.input.buffer.subarray(s.index, s.end)
     putBytes(ctx, 'Signature', s)
 
     const pubKey = await ctx.lookupKey(cipherInfo.origSysTitle, 'DS', {})
@@ -253,17 +253,17 @@ function parsePayload(
   } else if (messageCode === 0x00f2) {
     // 81A0 Alert GSME
     gbz.parseGbzMeterIntegrityIssueWarningAlert(ctx, x)
-  } else if (x.input[x.index] === 1 && x.input[x.index + 1] === 9) {
+  } else if (x.input.byte(x.index) === 1 && x.input.byte(x.index + 1) === 9) {
     if (craFlag === 3) {
       gbz.parseGbzAlertPayload(ctx, x)
     } else {
       gbz.parseGbzPayload(ctx, x)
     }
-  } else if (x.input[x.index] === 0xd9) {
+  } else if (x.input.byte(x.index) === 0xd9) {
     dlms.parseDlmsAccessRequest(ctx, x)
-  } else if (x.input[x.index] === 0xda) {
+  } else if (x.input.byte(x.index) === 0xda) {
     dlms.parseDlmsAccessResponse(ctx, x, messageCode)
-  } else if (x.input[x.index] === 0x0f) {
+  } else if (x.input.byte(x.index) === 0x0f) {
     dlms.parseDlmsDataNotificationGbcsAlert(ctx, x)
   } else if (messageCode === 0x0128) {
     // CCS08 alert
@@ -300,22 +300,22 @@ export async function parseGbcsMessage(
     decryptionList: [],
   }
   let x = parseHexString(text)
-  if (x.input[0] !== 0xdd && x.input[0] !== 0xdf) {
+  if (x.input.byte(0) !== 0xdd && x.input.byte(0) !== 0xdf) {
     // input could be base64 encoded
     const y = parseBase64String(text)
-    if (y.input[0] === 0xdd || y.input[0] === 0xdf) {
+    if (y.input.byte(0) === 0xdd || y.input.byte(0) === 0xdf) {
       // assume base64 encoding if it starts with a known tag
       x = y
     }
   }
   let cipherInfo: CipherInfo
-  if (x.input[0] === 0xdd) {
-    if (x.input[1] === 0x00) {
+  if (x.input.byte(0) === 0xdd) {
+    if (x.input.byte(1) === 0x00) {
       cipherInfo = await parseGeneralCiphering(ctx, x)
     } else {
       throw new Error('GBT not supported')
     }
-  } else if (x.input[0] === 0xdf) {
+  } else if (x.input.byte(0) === 0xdf) {
     cipherInfo = await parseGeneralSigning(ctx, x)
   } else {
     throw new Error('unknown frame format')

@@ -38,7 +38,7 @@ import {
   sign,
 } from 'crypto'
 import { CipherInfo, Context, KeyStore } from './context'
-import { Slice } from './util'
+import { Slice, Uint8ArrayWrapper } from './util'
 
 /**
  * standard gcm for use with GBCS - sets the cipher size and fixes the iv
@@ -87,7 +87,7 @@ export function decryptPayloadWithKey(
   const plaintext = decipher.update(ciphertextTag.subarray(0, -12))
   decipher.final()
   const yy: Slice = {
-    input: new Uint8Array(plaintext),
+    input: new Uint8ArrayWrapper(new Uint8Array(plaintext)),
     index: 0,
     end: plaintext.byteLength,
   }
