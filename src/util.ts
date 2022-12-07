@@ -609,7 +609,7 @@ export function parseBase64String(text: string): Slice {
 export function getBytes(x: Slice, n: number): Slice {
   const y = { input: x.input, index: x.index, end: x.index + n }
   x.index += n
-  if (y.index > y.end) {
+  if (x.index > x.end) {
     throw new Error('slice out of bounds')
   }
   return y

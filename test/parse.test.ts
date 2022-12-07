@@ -59,4 +59,40 @@ describe('parse', () => {
       expect(output['Signature'].children['Signature Length'].hex).toBe('00')
     })
   })
+
+  describe('malformed', () => {
+    test('wrong-signature-length', async () => {
+      const message = `
+      DF 09 01 00 00 00 00 00 00 03 E9 08 90 B3 D5 1F
+      30 01 00 00 08 00 DB 12 34 56 78 90 A0 00 02 00
+      62 6C D9 20 00 03 E9 00 05 02 00 08 00 00 01 00
+      00 FF 09 03 00 08 00 00 01 00 00 FF 05 03 00 08
+      00 00 01 00 00 FF 04 01 00 08 00 00 01 00 00 FF
+      02 01 00 08 00 00 01 00 00 FF 04 05 16 05 02 03
+      09 0C FF FF FF FF FF FF FF FF FF 80 00 FF 09 0C
+      07 DE 0C 1F FF 17 3B 0A 00 80 00 FF 09 0C 07 DF
+      01 01 FF 00 00 0A 00 80 00 FF 0F 00 00 00 20
+      `
+      await expect(parseGbcsMessage(message, keyStore)).rejects.toThrow(
+        'out of bounds'
+      )
+    })
+
+    test('wrong-frame-length', async () => {
+      const message = `
+      DF 09 01 00 00 00 00 00 00 03 E9 08 90 B3 D5 1F
+      30 01 00 00 08 00 DB 12 34 56 78 90 A0 00 02 00
+      62 6E D9 20 00 03 E9 00 05 02 00 08 00 00 01 00
+      00 FF 09 03 00 08 00 00 01 00 00 FF 05 03 00 08
+      00 00 01 00 00 FF 04 01 00 08 00 00 01 00 00 FF
+      02 01 00 08 00 00 01 00 00 FF 04 05 16 05 02 03
+      09 0C FF FF FF FF FF FF FF FF FF 80 00 FF 09 0C
+      07 DE 0C 1F FF 17 3B 0A 00 80 00 FF 09 0C 07 DF
+      01 01 FF 00 00 0A 00 80 00 FF 0F 00 00 00 00
+      `
+      await expect(parseGbcsMessage(message, keyStore)).rejects.toThrow(
+        'slice out of bounds'
+      )
+    })
+  })
 })
