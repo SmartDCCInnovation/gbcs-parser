@@ -320,7 +320,7 @@ describe('signGroupingHeader', () => {
     ).rejects.toThrow()
   })
 
-  test('nominal', async () => {
+  test('nominal/missing-signature', async () => {
     const message = Buffer.from(
       `
       DF 09 01 00 00 00 00 00 00 03 E9 08 90 B3 D5 1F
@@ -355,5 +355,63 @@ describe('signGroupingHeader', () => {
         signature
       )
     ).toBeTruthy()
+  })
+
+  test('nominal/null-signature', async () => {
+    const message = Buffer.from(
+      `
+      DF 09 01 00 00 00 00 00 00 03 E9 08 90 B3 D5 1F
+      30 01 00 00 08 00 DB 12 34 56 78 90 A0 00 02 00
+      62 6C D9 20 00 03 E9 00 05 02 00 08 00 00 01 00
+      00 FF 09 03 00 08 00 00 01 00 00 FF 05 03 00 08
+      00 00 01 00 00 FF 04 01 00 08 00 00 01 00 00 FF
+      02 01 00 08 00 00 01 00 00 FF 04 05 16 05 02 03
+      09 0C FF FF FF FF FF FF FF FF FF 80 00 FF 09 0C
+      07 DE 0C 1F FF 17 3B 0A 00 80 00 FF 09 0C 07 DF
+      01 01 FF 00 00 0A 00 80 00 FF 0F 00 00 00 00`.replace(/[ \n\t]/g, ''),
+      'hex'
+    )
+    const signed = await crypto.signGroupingHeader(
+      '90B3D51F30010000',
+      message.toString('base64'),
+      keyStore
+    )
+    const signedBuffer = Buffer.from(signed, 'base64')
+    expect(signedBuffer.length).toBe(message.length + 64)
+    const signature = signedBuffer.subarray(-64)
+    expect(signature.length).toBe(64)
+
+    expect(
+      verify(
+        'SHA256',
+        message.subarray(1, -1),
+        {
+          key: createPublicKey(org_90b3d51f30010000_ds_cert),
+          dsaEncoding: 'ieee-p1363',
+        },
+        signature
+      )
+    ).toBeTruthy()
+  })
+
+  test('already-signed', async () => {
+    const message = Buffer.from(
+      `
+      df 09 01 00 00 00 00 00 00 03 e8 08 90 b3 d5 1f
+      30 01 00 00 08 00 db 12 34 56 78 90 a0 00 02 00
+      0c 06 30 04 03 02 07 80 40 26 b0 ae 08 84 a5 aa
+      5d 21 76 eb b5 68 58 db f2 57 c6 68 5b 4d 3c bc
+      96 0c 02 5b 1a 90 1f 8f 21 7d d7 eb 02 0b cf 50
+      62 0c 3a 9c 51 bd 3f a5 0b ae 67 ec df 34 3d 3e
+      02 73 1d 9c c9 b2 41 c2 b2`.replace(/[ \n\t]/g, ''),
+      'hex'
+    )
+    await expect(
+      crypto.signGroupingHeader(
+        '90B3D51F30010000',
+        message.toString('base64'),
+        keyStore
+      )
+    ).rejects.toThrow('already signed')
   })
 })

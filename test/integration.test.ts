@@ -13,6 +13,11 @@ describe('rtds', () => {
       const output = await parseGbcsMessage(message, keyStore)
       expect('Grouping Header' in output).toBeTruthy()
       expect('Payload' in output).toBeTruthy()
+      if (file.search(/PRECOMMAND/) >= 0) {
+        expect('Signature' in output).toBeFalsy()
+      } else {
+        expect('Signature' in output).toBeTruthy()
+      }
     })
   })
 })

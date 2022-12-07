@@ -108,22 +108,24 @@ async function parseGeneralSigning(
   const contentLen = parseEncodedLength(ctx, x, 'Content Length')
   parsePayload(ctx, getBytes(x, contentLen), messageCode, craFlag)
   const signedDataEnd = x.index
-  putSeparator(ctx, 'Signature')
-  const signatureLen = parseEncodedLength(ctx, x, 'Signature Length')
-  if (signatureLen > 0) {
-    const s = getBytes(x, signatureLen)
-    const dataToSign = x.input.buffer.subarray(signedDataStart, signedDataEnd)
-    const signature = s.input.buffer.subarray(s.index, s.end)
-    putBytes(ctx, 'Signature', s)
+  if (x.index !== x.end) {
+    putSeparator(ctx, 'Signature')
+    const signatureLen = parseEncodedLength(ctx, x, 'Signature Length')
+    if (signatureLen > 0) {
+      const s = getBytes(x, signatureLen)
+      const dataToSign = x.input.buffer.subarray(signedDataStart, signedDataEnd)
+      const signature = s.input.buffer.subarray(s.index, s.end)
+      putBytes(ctx, 'Signature', s)
 
-    const pubKey = await ctx.lookupKey(cipherInfo.origSysTitle, 'DS', {})
-    const valid = verify(
-      'SHA256',
-      dataToSign,
-      { key: pubKey, dsaEncoding: 'ieee-p1363' },
-      signature
-    )
-    putBytes(ctx, 'Valid', getBytes(x, 0), valid ? 'true' : 'false')
+      const pubKey = await ctx.lookupKey(cipherInfo.origSysTitle, 'DS', {})
+      const valid = verify(
+        'SHA256',
+        dataToSign,
+        { key: pubKey, dsaEncoding: 'ieee-p1363' },
+        signature
+      )
+      putBytes(ctx, 'Valid', getBytes(x, 0), valid ? 'true' : 'false')
+    }
   }
   return cipherInfo
 }
