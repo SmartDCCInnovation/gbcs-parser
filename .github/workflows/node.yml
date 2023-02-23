@@ -28,7 +28,7 @@ jobs:
           echo "::set-output name=reporter::github-check"
         fi
     - name: Run prettier with reviewdog
-      uses: EPMatt/reviewdog-action-prettier@v1
+      uses: kazkansouh/reviewdog-action-prettier@v1
       with:
         github_token: ${{ secrets.github_token }}
         reporter: ${{ steps.get-reporter.outputs.reporter }}
