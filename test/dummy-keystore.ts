@@ -22,15 +22,7 @@ import { KeyStore } from '../src/context'
 import { createPrivateKey, createPublicKey, KeyObject } from 'crypto'
 import glob from 'glob'
 
-const globP = (f: string) =>
-  new Promise<string[]>((accept, reject) => {
-    glob(f, (err, matches) => {
-      if (err) {
-        reject(err)
-      }
-      accept(matches)
-    })
-  })
+const globP = (f: string) => glob(f)
 
 const keyStoreCache: {
   eui: string

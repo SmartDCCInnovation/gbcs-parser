@@ -1,11 +1,11 @@
 import { parseGbcsMessage } from '../src/parser'
-import { glob } from 'glob'
+import { globSync } from 'glob'
 import { basename } from 'path'
 import { readFileSync } from 'node:fs'
 import { keyStore } from './dummy-keystore'
 
 describe('rtds', () => {
-  const files = glob.sync('test/rtds/**/*HEX')
+  const files = globSync('test/rtds/**/*HEX')
   files.forEach((file) => {
     const name = basename(file)
     test.concurrent(name, async () => {
