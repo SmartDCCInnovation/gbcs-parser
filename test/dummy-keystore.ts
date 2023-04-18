@@ -20,7 +20,7 @@
 import { readFile } from 'node:fs/promises'
 import { KeyStore } from '../src/context'
 import { createPrivateKey, createPublicKey, KeyObject } from 'crypto'
-import glob from 'glob'
+import { glob } from 'glob'
 
 const globP = (f: string) => glob(f)
 
