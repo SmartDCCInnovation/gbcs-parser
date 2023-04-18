@@ -23,7 +23,7 @@
     "del-cli": "^5.0.0",
     "eslint": "^8.23.0",
     "eslint-config-prettier": "^8.5.0",
-    "glob": "^9.0.1",
+    "glob": "^10.2.1",
     "prettier": "^2.7.1",
     "ts-jest": "^29.0.0",
     "ts-node": "^10.9.1",
