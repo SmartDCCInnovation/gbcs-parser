@@ -56,7 +56,7 @@ export function gcm(
   plainText: Uint8Array,
   aad: Uint8Array,
   aesKey: KeyObject,
-  authTagLength?: number
+  authTagLength?: number,
 ): { cipherText: Uint8Array; tag: Uint8Array } {
   const iv = new Uint8Array(12)
   iv.set(cipherInfo.origSysTitle, 0)
@@ -76,7 +76,7 @@ export function decryptPayloadWithKey(
   cipherInfo: CipherInfo,
   ciphertextTag: Uint8Array,
   /* Uint8Array(16) */ aesKey: KeyObject,
-  doneCb: (x: Slice) => void
+  doneCb: (x: Slice) => void,
 ) {
   const iv = new Uint8Array(12)
   iv.set(cipherInfo.origSysTitle, 0)
@@ -108,7 +108,7 @@ export function deriveKeyFromPair(
   privkey: string | KeyObject,
   pubkey: string | KeyObject,
   cipherInfo: CipherInfo,
-  mode?: 'command' | 'response' | 'alert' | 'encryption'
+  mode?: 'command' | 'response' | 'alert' | 'encryption',
 ) {
   if (typeof privkey === 'string') {
     privkey = createPrivateKey({ key: privkey, format: 'pem' })
@@ -172,7 +172,7 @@ export function deriveKeyFromPair(
 export function decryptGbcsData(
   ctx: Context,
   ciphertextAndTag: Uint8Array,
-  okCallback: (x: Slice) => void
+  okCallback: (x: Slice) => void,
 ) {
   ctx.decryptionList.push(function (cipherInfo: CipherInfo, aesKey: KeyObject) {
     decryptPayloadWithKey(cipherInfo, ciphertextAndTag, aesKey, okCallback)
@@ -190,7 +190,7 @@ export function decryptGbcsData(
 export async function signGroupingHeader(
   originatorId: string,
   payload: string,
-  keyStore: KeyStore
+  keyStore: KeyStore,
 ): Promise<string> {
   const signersKey = await keyStore(originatorId, 'DS', { privateKey: true })
   let tbs = Buffer.from(payload, 'base64')

@@ -60,7 +60,7 @@ export function parseDlmsAccessRequest(ctx: Context, x: Slice) {
     ctx,
     x,
     `${indent}List of Access Request Specifications`,
-    parseDlmsAccessRequestSpecification
+    parseDlmsAccessRequestSpecification,
   )
   // TODO: check for IC 0x001E (Data Protection), Method 1 (Get Protected Attributes)
   parseDlmsSequenceOf(ctx, x, `${indent}List of Data`, parseDlmsData)
@@ -69,7 +69,7 @@ export function parseDlmsAccessRequest(ctx: Context, x: Slice) {
 export function parseDlmsAccessResponse(
   ctx: Context,
   x: Slice,
-  messageCode: number
+  messageCode: number,
 ) {
   putBytes(ctx, 'DLMS Access Response', getBytes(x, 7))
   switch (messageCode) {
@@ -87,7 +87,7 @@ export function parseDlmsAccessResponse(
         ctx,
         x,
         ' List of Access Response Data',
-        parseDlmsProtectedAttributesResponse
+        parseDlmsProtectedAttributesResponse,
       )
       break
     default:
@@ -95,7 +95,7 @@ export function parseDlmsAccessResponse(
         ctx,
         x,
         ' List of Access Response Data',
-        parseDlmsData
+        parseDlmsData,
       )
       break
   }
@@ -103,7 +103,7 @@ export function parseDlmsAccessResponse(
     ctx,
     x,
     ' List of Access Response Specification',
-    parseDlmsAccessResponseSpecification
+    parseDlmsAccessResponseSpecification,
   )
 }
 
@@ -125,7 +125,7 @@ export function parseDlmsDataNotificationGbcsAlert(ctx: Context, x: Slice) {
 function parseDlmsAccessRequestSpecification(
   ctx: Context,
   x: Slice,
-  idx: string
+  idx: string,
 ) {
   const indent = idx.match(/^ */)?.[0] ?? ''
   idx = idx.trimStart()
@@ -135,7 +135,7 @@ function parseDlmsAccessRequestSpecification(
       ctx,
       `${indent}${idx}Access Request Specification`,
       getBytes(x, 1),
-      `Access Request Get ${idx.trimEnd()}`
+      `Access Request Get ${idx.trimEnd()}`,
     )
     parseDlmsCosemAttributeDescriptor(ctx, x, indent + ' ')
   } else if (choice === 2) {
@@ -143,7 +143,7 @@ function parseDlmsAccessRequestSpecification(
       ctx,
       `${indent}${idx}Access Request Specification`,
       getBytes(x, 1),
-      `Access Request Set ${idx.trimEnd()}`
+      `Access Request Set ${idx.trimEnd()}`,
     )
     parseDlmsCosemAttributeDescriptor(ctx, x, indent + ' ')
   } else if (choice === 3) {
@@ -151,7 +151,7 @@ function parseDlmsAccessRequestSpecification(
       ctx,
       `${indent}${idx}Access Request Specification`,
       getBytes(x, 1),
-      `Access Request Action ${idx.trimEnd()}`
+      `Access Request Action ${idx.trimEnd()}`,
     )
     parseDlmsCosemMethodDescriptor(ctx, x, indent + ' ')
   } else if (choice === 4) {
@@ -159,7 +159,7 @@ function parseDlmsAccessRequestSpecification(
       ctx,
       `${indent}${idx}Access Request Specification`,
       getBytes(x, 1),
-      `Access Request Get with Selection ${idx.trimEnd()}`
+      `Access Request Get with Selection ${idx.trimEnd()}`,
     )
     parseDlmsCosemAttributeDescriptor(ctx, x, indent + ' ')
     parseDlmsSelectiveAccessDescriptor(ctx, x, indent + ' ')
@@ -171,7 +171,7 @@ function parseDlmsAccessRequestSpecification(
 function parseDlmsAccessResponseSpecification(
   ctx: Context,
   x: Slice,
-  idx: string
+  idx: string,
 ) {
   const indent = idx.match(/^ */)?.[0] ?? ''
   idx = idx.trimStart()
@@ -181,7 +181,7 @@ function parseDlmsAccessResponseSpecification(
       ctx,
       `${indent}${idx}Access Response Specification`,
       getBytes(x, 1),
-      `Access Response Get ${idx.trimEnd()}`
+      `Access Response Get ${idx.trimEnd()}`,
     )
     parseDlmsDataAccessResult(ctx, x, indent + ' ')
   } else if (choice === 2) {
@@ -189,7 +189,7 @@ function parseDlmsAccessResponseSpecification(
       ctx,
       `${indent}${idx}Access Response Specification`,
       getBytes(x, 1),
-      `Access Response Set ${idx.trimEnd()}`
+      `Access Response Set ${idx.trimEnd()}`,
     )
     parseDlmsDataAccessResult(ctx, x, indent + ' ')
   } else if (choice === 3) {
@@ -197,7 +197,7 @@ function parseDlmsAccessResponseSpecification(
       ctx,
       `${indent}${idx}Access Response Specification`,
       getBytes(x, 1),
-      `Access Response Action ${idx.trimEnd()}`
+      `Access Response Action ${idx.trimEnd()}`,
     )
     parseDlmsActionResult(ctx, x, indent + ' ')
   } else {
@@ -218,7 +218,7 @@ export function parseDlmsFutureDatedAlert(ctx: Context, x: Slice) {
 
 export function parseDlmsFirmwareDistributionReceiptAlert(
   ctx: Context,
-  x: Slice
+  x: Slice,
 ) {
   putBytes(ctx, 'DLMS Data Notification', getBytes(x, 8))
   const indent = ' '
@@ -237,7 +237,7 @@ export function parseDlmsBillingDataLogAlert(ctx: Context, x: Slice) {
 
 export function parseDlmsMeterIntegrityIssueWarningAlert(
   ctx: Context,
-  x: Slice
+  x: Slice,
 ) {
   putBytes(ctx, 'DLMS Data Notification', getBytes(x, 8))
   const indent = ' '
@@ -269,7 +269,7 @@ function parseProtectionParameters(ctx: Context, x: Slice, indent: string) {
     ctx,
     `${indent}   Key Parameters`,
     getBytes(x, 3),
-    'C(0e, 2s ECC CDH)'
+    'C(0e, 2s ECC CDH)',
   )
   putBytes(ctx, `${indent}   Key Ciphered Data`, getBytes(x, 2))
   return cipherInfo
@@ -278,7 +278,7 @@ function parseProtectionParameters(ctx: Context, x: Slice, indent: string) {
 function parseDlmsProtectedAttributesResponse(
   ctx: Context,
   x: Slice,
-  name?: string
+  name?: string,
 ) {
   const indent = (name ?? '').match(/^ */)?.[0] ?? ''
   if (x.input.byte(x.index) !== 0x02 || x.input.byte(x.index + 1) !== 0x02) {
@@ -314,7 +314,7 @@ function parseDlmsSequenceOf(
   ctx: Context,
   x: Slice,
   name: string,
-  parse: (ctx: Context, x: Slice, name: string) => void
+  parse: (ctx: Context, x: Slice, name: string) => void,
 ) {
   const indent = name.match(/^ */)?.[0] ?? ''
   const n = x.input.byte(x.index)
@@ -336,7 +336,7 @@ function parseDlmsData(ctx: Context, x: Slice, name?: string) {
       ctx,
       name + 'Array',
       getBytes(x, 2),
-      n + (n > 1 ? ' elements' : ' element')
+      n + (n > 1 ? ' elements' : ' element'),
     )
     for (let i = 0; i < n; i++) {
       parseDlmsData(ctx, x, `${indent} [${i}] `)
@@ -382,7 +382,7 @@ function parseDlmsBitString(
   ctx: Context,
   x: Slice,
   name: string,
-  hasTag: boolean
+  hasTag: boolean,
 ) {
   const offset = hasTag ? 1 : 0
   let bitlen = x.input.byte(x.index + offset)
@@ -479,7 +479,7 @@ function getDlmsLongDate(x: Slice, offset: number) {
   if (dev === 0x8000 && clk === 0xff) {
     const dateTimeSlice = x.input.buffer.subarray(
       x.index + offset,
-      x.index + offset + 9
+      x.index + offset + 9,
     )
     if (checkSameValue(dateTimeSlice, 0x00)) {
       // for DLMS COSEM Commands Payloads, activation date-time(s) have the value 0x0000000000000000008000FF;
@@ -507,7 +507,7 @@ export function parseDlmsOctetString(
   ctx: Context,
   x: Slice,
   name: string,
-  hasTag: boolean
+  hasTag: boolean,
 ) {
   const offset = hasTag ? 1 : 0
   const lenSz = parseLength(x, offset)
@@ -524,7 +524,7 @@ export function parseDlmsOctetString(
   if (len > 1 && stringLike) {
     for (let i = 0; i < len; i++) {
       text += String.fromCharCode(
-        x.input.byte(x.index + offset + lenSz.size + i)
+        x.input.byte(x.index + offset + lenSz.size + i),
       )
     }
     text = '"' + text + '"'
@@ -544,7 +544,7 @@ function parseDlmsBoolean(
   ctx: Context,
   x: Slice,
   name: string,
-  hasTag: boolean
+  hasTag: boolean,
 ) {
   const offset = hasTag ? 1 : 0
   const value = x.input.byte(x.index + offset) ? 'True' : 'False'
@@ -557,7 +557,7 @@ function parseDlmsNumber(
   name: string,
   size: number,
   hasTag: boolean,
-  hasSign: boolean
+  hasSign: boolean,
 ) {
   const offset = hasTag ? 1 : 0
   let value = parseNumber(x, size, offset)
@@ -572,7 +572,7 @@ function parseDlmsInteger(
   ctx: Context,
   x: Slice,
   name: string,
-  hasTag: boolean
+  hasTag: boolean,
 ) {
   parseDlmsNumber(ctx, x, name, 1, hasTag, true)
 }
@@ -581,7 +581,7 @@ function parseDlmsUnsigned(
   ctx: Context,
   x: Slice,
   name: string,
-  hasTag: boolean
+  hasTag: boolean,
 ) {
   parseDlmsNumber(ctx, x, name, 1, hasTag, false)
 }
@@ -594,7 +594,7 @@ function parseDlmsLongUnsigned(
   ctx: Context,
   x: Slice,
   name: string,
-  hasTag: boolean
+  hasTag: boolean,
 ) {
   parseDlmsNumber(ctx, x, name, 2, hasTag, false)
 }
@@ -603,7 +603,7 @@ function parseDlmsDoubleLong(
   ctx: Context,
   x: Slice,
   name: string,
-  hasTag: boolean
+  hasTag: boolean,
 ) {
   parseDlmsNumber(ctx, x, name, 4, hasTag, true)
 }
@@ -612,7 +612,7 @@ function parseDlmsDoubleLongUnsigned(
   ctx: Context,
   x: Slice,
   name: string,
-  hasTag: boolean
+  hasTag: boolean,
 ) {
   parseDlmsNumber(ctx, x, name, 4, hasTag, false)
 }
@@ -622,7 +622,7 @@ function parseDlmsEnum(
   x: Slice,
   name: string,
   hasTag: boolean,
-  values?: Record<number, string>
+  values?: Record<number, string>,
 ) {
   const offset = hasTag ? 1 : 0
   const value = parseNumber(x, 1, offset)
@@ -636,7 +636,7 @@ function parseDlmsAlertCode(ctx: Context, x: Slice, indent: string) {
     ctx,
     `${indent}Alert Code`,
     getBytes(x, 3),
-    getAlertCodeName(alertCode)
+    getAlertCodeName(alertCode),
   )
 }
 
@@ -664,7 +664,7 @@ type DlmsTypeDescription =
 function parseDlmsTypeDescription(
   ctx: Context,
   x: Slice,
-  name: string
+  name: string,
 ): DlmsTypeDescription {
   const choice = x.input.byte(x.index)
   const indent = name.match(/^ */)?.[0] ?? ''
@@ -675,7 +675,7 @@ function parseDlmsTypeDescription(
       ctx,
       `${name}Array`,
       getBytes(x, 3),
-      `Number of elements ${numberOfElements}`
+      `Number of elements ${numberOfElements}`,
     )
     const t = parseDlmsTypeDescription(ctx, x, indent + ' ')
     return { choice, children: { number: numberOfElements, type: t } }
@@ -742,7 +742,7 @@ function parseDlmsCompactArrayContents(
   ctx: Context,
   indent: string,
   x: Slice,
-  typeDescription: DlmsTypeDescription
+  typeDescription: DlmsTypeDescription,
 ) {
   const lenSz = parseLength(x)
   const arrayContentsLen = lenSz.length
@@ -757,7 +757,7 @@ function parseDlmsCompactArrayContents(
       ctx,
       `${indent}[${index}] `,
       contents,
-      typeDescription
+      typeDescription,
     )
     index++
   }
@@ -767,7 +767,7 @@ function parseDlmsTypeDescriptionContentsData(
   ctx: Context,
   name: string,
   x: Slice,
-  typeDescription: DlmsTypeDescription
+  typeDescription: DlmsTypeDescription,
 ) {
   const indent = name.match(/^ */)?.[0] ?? ''
   const choice = typeDescription.choice
@@ -828,7 +828,7 @@ function parseDlmsTypeDescriptionContentsData(
 function parseDlmsCosemAttributeDescriptor(
   ctx: Context,
   x: Slice,
-  indent: string
+  indent: string,
 ) {
   const cosemClass = parseDlmsCosemClassId(ctx, x, indent)
   parseDlmsCosemInstanceId(ctx, x, indent, cosemClass)
@@ -838,7 +838,7 @@ function parseDlmsCosemAttributeDescriptor(
 function parseDlmsCosemMethodDescriptor(
   ctx: Context,
   x: Slice,
-  indent: string
+  indent: string,
 ) {
   const cosemClass = parseDlmsCosemClassId(ctx, x, indent)
   parseDlmsCosemInstanceId(ctx, x, indent, cosemClass)
@@ -1089,7 +1089,7 @@ function parseDlmsCosemInstanceId(
   ctx: Context,
   x: Slice,
   indent: string,
-  cosemClass: CosemClass
+  cosemClass: CosemClass,
 ) {
   const id = parseNumber(x, 6)
   const cosemInstance = cosemClass.instances[id]
@@ -1102,7 +1102,7 @@ function parseDlmsCosemAttributeId(
   ctx: Context,
   x: Slice,
   indent: string,
-  cosemClass: CosemClass
+  cosemClass: CosemClass,
 ) {
   const id = x.input.byte(x.index)
   const name = cosemClass.attributes[id - 2] || 'Attribute ' + id
@@ -1113,7 +1113,7 @@ function parseDlmsCosemMethodId(
   ctx: Context,
   x: Slice,
   indent: string,
-  cosemClass: CosemClass
+  cosemClass: CosemClass,
 ) {
   const id = x.input.byte(x.index)
   const name = cosemClass.methods[id - 1] || 'Method ' + id
@@ -1123,7 +1123,7 @@ function parseDlmsCosemMethodId(
 function parseDlmsSelectiveAccessDescriptor(
   ctx: Context,
   x: Slice,
-  indent: string
+  indent: string,
 ) {
   putBytes(ctx, `${indent}Access Selector`, getBytes(x, 1))
   parseDlmsData(ctx, x, indent + ' ')
@@ -1153,7 +1153,7 @@ function parseDlmsDataAccessResult(ctx: Context, x: Slice, indent: string) {
     ctx,
     `${indent}Data Access Result`,
     getBytes(x, 1),
-    values[value] || ''
+    values[value] || '',
   )
 }
 
@@ -1182,7 +1182,7 @@ function parseDlmsActionResult(ctx: Context, x: Slice, indent: string) {
 export function parseRemotePartyMessage(
   ctx: Context,
   x: Slice,
-  indent: string
+  indent: string,
 ) {
   const s = parseSequence(ctx, x, `${indent}Remote Party Message`)
   indent = indent + ' '

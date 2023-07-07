@@ -35,26 +35,26 @@ import { getAlertCodeName, getBytes, getDecimalString, Slice } from './util'
 
 export function parseProvideSecurityCredentialDetailsCommand(
   ctx: Context,
-  x: Slice
+  x: Slice,
 ) {
   const s = parseSequence(ctx, x, 'Provide Security Credential Details Command')
   const indent = ' '
   parseTrustAnchorCellIdentifier(
     ctx,
     s,
-    `${indent}Authorising Remote Party TA Cell Identifier`
+    `${indent}Authorising Remote Party TA Cell Identifier`,
   )
   parseSequenceOf(
     ctx,
     s,
     `${indent}Remote Party Roles Credentials Required`,
-    parseRemotePartyRole
+    parseRemotePartyRole,
   )
 }
 
 export function parseProvideSecurityCredentialDetailsResponse(
   ctx: Context,
-  x: Slice
+  x: Slice,
 ) {
   parseSequenceOf(
     ctx,
@@ -76,17 +76,17 @@ export function parseProvideSecurityCredentialDetailsResponse(
               const s = parseSequence(
                 ctx,
                 x,
-                `${name}Trust Anchor Cell Contents`
+                `${name}Trust Anchor Cell Contents`,
               )
               parseKeyUsage(ctx, s, indent)
               parseCellUsage(ctx, s, indent)
               parseDerOctetString(ctx, s, `${indent}Subject Unique ID`)
               parseDerOctetString(ctx, s, `${indent}Subject Key Identifier`)
-            }
+            },
           )
         }
       })
-    }
+    },
   )
 }
 
@@ -101,7 +101,7 @@ export function parseUpdateSecurityCredentialsCommand(ctx: Context, x: Slice) {
     ctx,
     s,
     `${indent}Certification Path Certificates`,
-    parseCertificate
+    parseCertificate,
   )
   if (isPresent(s, 0x18))
     parseGeneralizedTime(ctx, s, `${indent}Execution Date Time`)
@@ -126,7 +126,7 @@ export function parseUpdateSecurityCredentialsAlert(ctx: Context, x: Slice) {
 export function parseUpdateSecurityCredentialsExecutionOutcome(
   ctx: Context,
   x: Slice,
-  indent: string
+  indent: string,
 ) {
   const s = parseSequence(ctx, x, `${indent}Execution Outcome`)
   indent = indent + ' '
@@ -136,13 +136,13 @@ export function parseUpdateSecurityCredentialsExecutionOutcome(
     ctx,
     s,
     `${indent}Remote Party Seq Number Changes`,
-    parseRemotePartySeqNumberChange
+    parseRemotePartySeqNumberChange,
   )
   parseSequenceOf(
     ctx,
     s,
     `${indent}Replacement Outcomes`,
-    parseReplacementOutcome
+    parseReplacementOutcome,
   )
 }
 
@@ -299,7 +299,7 @@ export function parseActivateFirmwareAlert(ctx: Context, x: Slice) {
 export function parseActivateFirmwareExecutionOutcome(
   ctx: Context,
   x: Slice,
-  indent: string
+  indent: string,
 ) {
   const s = parseSequence(ctx, x, `${indent}Execution Outcome`)
   indent = indent + ' '
@@ -358,14 +358,14 @@ export function parseFirmwareTransferAlert(ctx: Context, x: Slice) {
 
 export function parseReadPPMIDHCALCSFirmwareVersionCommand(
   ctx: Context,
-  x: Slice
+  x: Slice,
 ) {
   parseNull(ctx, x, 'Read PPMID HCALCS Firmware version')
 }
 
 export function parseReadPPMIDHCALCSFirmwareVersionResponse(
   ctx: Context,
-  x: Slice
+  x: Slice,
 ) {
   const s = parseSequence(ctx, x, 'Read Device Join Details Response')
   const indent = ' '
@@ -378,7 +378,7 @@ export function parseReadPPMIDHCALCSFirmwareVersionResponse(
 
 export function parseReadPPMIDHCALCSFirmwareVersionAlert(
   ctx: Context,
-  x: Slice
+  x: Slice,
 ) {
   const s = parseSequence(ctx, x, 'Read PPMID/HCALCS Firmware Version')
   const indent = ' '
@@ -426,7 +426,7 @@ export function parseGpfDeviceLogRestoreResponse(ctx: Context, x: Slice) {
     ctx,
     s,
     `${indent}Restore Outcomes`,
-    parseGpfDeviceLogRestoreOutcome
+    parseGpfDeviceLogRestoreOutcome,
   )
 }
 
@@ -543,7 +543,7 @@ function parseSeqNumber(ctx: Context, x: Slice, name: string) {
 function parseCredentialsReplacementMode(
   ctx: Context,
   x: Slice,
-  indent: string
+  indent: string,
 ) {
   const values = {
     2: 'Supplier by Supplier',
@@ -561,7 +561,7 @@ function parseCredentialsReplacementMode(
 function parseAuthorisingRemotePartyControl(
   ctx: Context,
   x: Slice,
-  indent: string
+  indent: string,
 ) {
   const s = parseSequence(ctx, x, `${indent}Authorising Remote Party Control`)
   indent = indent + ' '
@@ -577,7 +577,7 @@ function parseAuthorisingRemotePartyControl(
     parseTrustAnchorCellIdentifier(
       ctx,
       s,
-      `${indent}Authorising Remote Party TA Cell Identifier`
+      `${indent}Authorising Remote Party TA Cell Identifier`,
     )
   parseSeqNumber(ctx, s, `${indent}Authorising Remote Party Seq Number`)
   if (isPresent(s, 0x84))
@@ -587,14 +587,14 @@ function parseAuthorisingRemotePartyControl(
       ctx,
       s,
       `${indent}New Remote Party Specialist Floor Seq Number`,
-      parseSpecialistSeqNumber
+      parseSpecialistSeqNumber,
     )
   if (isPresent(s, 0xa6))
     parseSequenceOf(
       ctx,
       s,
       `${indent}Other Remote Party Seq Number Changes`,
-      parseRemotePartySeqNumberChange
+      parseRemotePartySeqNumberChange,
     )
 }
 
@@ -615,7 +615,7 @@ function parseRemotePartySeqNumberChange(ctx: Context, x: Slice, name: string) {
       ctx,
       s,
       `${indent}Specialist Floor Seq Number`,
-      parseSpecialistSeqNumber
+      parseSpecialistSeqNumber,
     )
 }
 
@@ -659,7 +659,7 @@ function parseSequenceOf(
   ctx: Context,
   x: Slice,
   name: string,
-  parse: (ctx: Context, x: Slice, name: string) => void
+  parse: (ctx: Context, x: Slice, name: string) => void,
 ) {
   const indent = name.match(/^ */)?.[0] ?? ''
   const s = parseSequence(ctx, x, name)
@@ -674,7 +674,7 @@ function parseInteger(
   ctx: Context,
   x: Slice,
   name: string,
-  values: Record<number, string>
+  values: Record<number, string>,
 ) {
   let value = 0
   const length = x.input.byte(x.index + 1)
@@ -690,7 +690,7 @@ function parseAsn1AlertCode(ctx: Context, x: Slice, indent: string) {
     ctx,
     `${indent}Alert Code`,
     getBytes(x, 2 + length),
-    getAlertCodeName(alertCode)
+    getAlertCodeName(alertCode),
   )
 }
 
@@ -698,7 +698,7 @@ function parseEnumerated(
   ctx: Context,
   x: Slice,
   name: string,
-  values: Record<number, string>
+  values: Record<number, string>,
 ) {
   parseInteger(ctx, x, name, values)
 }

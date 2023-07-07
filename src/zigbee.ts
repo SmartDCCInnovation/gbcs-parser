@@ -53,7 +53,7 @@ export function parseGbzPayload(ctx: Context, x: Slice) {
     ctx,
     'Number of GBZ components',
     getBytes(x, 1),
-    String(numberOfGbzComponents)
+    String(numberOfGbzComponents),
   )
   for (let i = 1; i <= numberOfGbzComponents; i++) {
     putSeparator(ctx, 'GBZ Component ' + i)
@@ -73,7 +73,7 @@ export function parseGbzAlertPayload(ctx: Context, x: Slice) {
 
 export function parseGbzMeterIntegrityIssueWarningAlert(
   ctx: Context,
-  x: Slice
+  x: Slice,
 ) {
   putBytes(ctx, 'Profile ID', getBytes(x, 2))
   putBytes(ctx, 'Number of GBZ components', getBytes(x, 1))
@@ -99,7 +99,7 @@ export function parseGbzFutureDatedAlertPayload(ctx: Context, x: Slice) {
 
 export function parseGbzFirmwareDistributionReceiptAlert(
   ctx: Context,
-  x: Slice
+  x: Slice,
 ) {
   putBytes(ctx, 'Profile ID', getBytes(x, 2))
   putBytes(ctx, 'Number of GBZ components', getBytes(x, 1))
@@ -414,7 +414,7 @@ function parseCommandId(
   x: Slice,
   indent: string,
   frameControl: number,
-  cluster: ZclCluster
+  cluster: ZclCluster,
 ) {
   let command: [string, ZclParse] | undefined = undefined
   const commandId = x.input.byte(x.index)
@@ -747,14 +747,14 @@ function parseZsePublishSnapshot({ ctx, x, indent }: ZclParseOptions) {
     ctx,
     8,
     x,
-    `${indent} Number of Tiers and Block Thresholds in Use`
+    `${indent} Number of Tiers and Block Thresholds in Use`,
   )
   for (let i = 0; i < 4; i++) {
     parseZclUint(
       ctx,
       48,
       x,
-      `${indent} Tariff TOU Block Counter Matrix [${i + 1}]`
+      `${indent} Tariff TOU Block Counter Matrix [${i + 1}]`,
     )
   }
 }
@@ -1005,7 +1005,7 @@ function parseZsePublishDayProfile({ ctx, x, indent }: ZclParseOptions) {
       ctx,
       `${indent}Schedule Entry ${i} Start Time`,
       getBytes(x, 2),
-      time
+      time,
     )
     if (calendarType === 0x00)
       parseZclUint(ctx, 8, x, `${indent}Price Tier ${i}`)
@@ -1043,7 +1043,7 @@ function parseZsePublishSpecialDays({ ctx, x, indent }: ZclParseOptions) {
     ctx,
     8,
     x,
-    `${indent}Number of Special Days`
+    `${indent}Number of Special Days`,
   )
   parseZclUint(ctx, 8, x, `${indent}Command Index`)
   parseZclUint(ctx, 8, x, `${indent}Number of Commands`)
@@ -1164,7 +1164,7 @@ function parseZclUint(
   bits: number,
   x: Slice,
   name: string,
-  values?: Record<number, string>
+  values?: Record<number, string>,
 ) {
   let value = 0
   const bytes = bits / 8
@@ -1173,7 +1173,7 @@ function parseZclUint(
     ctx,
     name,
     getBytes(x, bytes),
-    values?.[value] ?? String(value)
+    values?.[value] ?? String(value),
     /*tooltip(
         (values && (values[value] || 'Unknown')) || value,
         toHex(value, bits)
@@ -1206,7 +1206,7 @@ function parseZclCalendarUint(
   ctx: Context,
   bits: number,
   x: Slice,
-  name: string
+  name: string,
 ) {
   const bytes = bits / 8 //useless
   const calendarType = x.input.byte(x.index)
@@ -1236,7 +1236,7 @@ function parseZclBitmap(
   bits: number,
   x: Slice,
   name: string,
-  values?: Record<number, string>
+  values?: Record<number, string>,
 ) {
   const number = parseNumberLE(x, bits / 8)
   const value = toHex(number, bits)
@@ -1266,7 +1266,7 @@ function parseZclEnum(
   bits: number,
   x: Slice,
   name: string,
-  values?: Record<number, string>
+  values?: Record<number, string>,
 ) {
   parseZclUint(ctx, bits, x, name, values)
 }
@@ -1375,7 +1375,7 @@ function parseZclUtrn(ctx: Context, x: Slice, name: string) {
       ', PTUT Value Class: ' +
       ptutValueClass +
       ', PTUT Value: ' +
-      ptutValue
+      ptutValue,
   )
 }
 
