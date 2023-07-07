@@ -73,7 +73,7 @@ async function ptut(options: PtutOptions): Promise<bigint> {
   const valueClass = options.valueClass === 'pounds' ? '01' : '00'
   const value = Number(options.value).toString(2).padStart(13, '0').slice(-13)
   const ptut_high_dword = BigInt(
-    `0b0000000${ctrTruncated}${valueClass}${value}`
+    `0b0000000${ctrTruncated}${valueClass}${value}`,
   )
 
   const originator = options.originator.replace(/[- ]/g, '').toLowerCase()
@@ -92,7 +92,7 @@ async function ptut(options: PtutOptions): Promise<bigint> {
       .toString(16)
       .padStart(16, '0')
       .slice(-16)}${ptut_high_dword.toString(16).padStart(8, '0').slice(-8)}`,
-    'hex'
+    'hex',
   )
 
   const cipherInfo: CipherInfo = {
@@ -100,7 +100,7 @@ async function ptut(options: PtutOptions): Promise<bigint> {
     recipSysTitle: Buffer.from(target, 'hex'),
     origCounter: Buffer.from(
       BigInt(options.counter).toString(16).padStart(16, '0').slice(-16),
-      'hex'
+      'hex',
     ),
   }
   /* retrieve device public ka key */
@@ -177,11 +177,11 @@ const I = [1, 2, 6, 7, 5, 8, 3, 0, 9, 4]
  * @returns single digit as string
  */
 export function verhoeffGbcs(
-  digits: string
+  digits: string,
 ): '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' {
   if (digits.match(/^\d+$/) === null) {
     throw new Error(
-      `expected input is a string consisting of digits 0-9, received: ${digits}`
+      `expected input is a string consisting of digits 0-9, received: ${digits}`,
     )
   }
   let IntDig = 0

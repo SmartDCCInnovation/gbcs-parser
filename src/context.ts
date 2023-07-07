@@ -55,7 +55,7 @@ export type KeyStore = (
   options: {
     privateKey?: boolean
     prePayment?: boolean
-  }
+  },
 ) => Promise<KeyObject>
 
 export type DecryptCB = (cipherInfo: CipherInfo, aesKey: KeyObject) => void
@@ -87,7 +87,7 @@ export function putBytes(
   ctx: Context,
   name: string,
   bytes: Slice,
-  notes?: string
+  notes?: string,
 ) {
   const h = '0123456789ABCDEF'
   const n = bytes.end - bytes.index
@@ -164,7 +164,7 @@ export function minimizeItem({
   }
   if (children && Object.keys(children).length >= 1) {
     result.children = Object.fromEntries(
-      Object.keys(children).map((k) => [k, minimizeItem(children[k])])
+      Object.keys(children).map((k) => [k, minimizeItem(children[k])]),
     )
   }
   return result
@@ -172,7 +172,7 @@ export function minimizeItem({
 
 export function minimizeBlock({ children }: ParsedBlock): MinimizedParsedBlock {
   return Object.fromEntries(
-    Object.keys(children).map((k) => [k, minimizeItem(children[k])])
+    Object.keys(children).map((k) => [k, minimizeItem(children[k])]),
   )
 }
 
@@ -184,9 +184,9 @@ export function minimizeBlock({ children }: ParsedBlock): MinimizedParsedBlock {
  * @returns
  */
 export function minimizeMessage(
-  message: ParsedMessage
+  message: ParsedMessage,
 ): MinimizedParsedMessage {
   return Object.fromEntries(
-    Object.keys(message).map((k) => [k, minimizeBlock(message[k])])
+    Object.keys(message).map((k) => [k, minimizeBlock(message[k])]),
   )
 }

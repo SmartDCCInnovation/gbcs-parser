@@ -49,7 +49,7 @@ import * as asn1 from './asn1'
 
 async function parseGeneralCiphering(
   ctx: Context,
-  x: Slice
+  x: Slice,
 ): Promise<CipherInfo> {
   putSeparator(ctx, 'MAC Header')
   putBytes(ctx, 'General Ciphering', getBytes(x, 7))
@@ -64,7 +64,7 @@ async function parseGeneralCiphering(
 
 async function parseGeneralSigning(
   ctx: Context,
-  x: Slice
+  x: Slice,
 ): Promise<CipherInfo> {
   putSeparator(ctx, 'Grouping Header')
   const signedDataStart = x.index + 1
@@ -85,7 +85,7 @@ async function parseGeneralSigning(
   if (otherInfoLen >= 10) {
     cipherInfo.recipSysTitle = otherInfo.input.buffer.subarray(
       otherInfo.index,
-      otherInfo.index + 8
+      otherInfo.index + 8,
     )
     putBytes(ctx, ' Supplementary Remote Party ID', getBytes(otherInfo, 8))
     if (otherInfoLen >= 18) {
@@ -93,14 +93,14 @@ async function parseGeneralSigning(
       if (otherInfoLen === 26) {
         cipherInfo.origCounter = otherInfo.input.buffer.subarray(
           otherInfo.index,
-          otherInfo.index + 8
+          otherInfo.index + 8,
         )
         parseCounter(ctx, ' Supplementary Originator Counter', otherInfo)
       } else if (otherInfoLen > 26) {
         asn1.parseCertificate(
           ctx,
           otherInfo,
-          ' Supplementary Remote Party Key Agreement Certificate'
+          ' Supplementary Remote Party Key Agreement Certificate',
         )
       }
     }
@@ -122,7 +122,7 @@ async function parseGeneralSigning(
         'SHA256',
         dataToSign,
         { key: pubKey, dsaEncoding: 'ieee-p1363' },
-        signature
+        signature,
       )
       putBytes(ctx, 'Valid', getBytes(x, 0), valid ? 'true' : 'false')
     }
@@ -134,7 +134,7 @@ function parsePayload(
   ctx: Context,
   x: Slice,
   messageCode: number,
-  craFlag: number
+  craFlag: number,
 ) {
   putSeparator(ctx, 'Payload')
   if (messageCode === 0x0008) {
@@ -293,7 +293,7 @@ function parseEncodedLength(ctx: Context, x: Slice, name: string) {
 
 export async function parseGbcsMessage(
   text: string,
-  lookupKey: KeyStore
+  lookupKey: KeyStore,
 ): Promise<ParsedMessage> {
   const ctx: Context = {
     lookupKey,
@@ -333,7 +333,7 @@ export async function parseGbcsMessage(
 async function handleDecryptGbcsData(
   ctx: Context,
   cipherInfo: CipherInfo,
-  lookupKey: KeyStore
+  lookupKey: KeyStore,
 ): Promise<void> {
   const pubKey = await lookupKey(cipherInfo.origSysTitle, 'KA', {})
   const prvKey = await lookupKey(cipherInfo.recipSysTitle, 'KA', {

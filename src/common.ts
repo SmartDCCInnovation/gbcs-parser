@@ -76,7 +76,7 @@ export function parseCounter(ctx: Context, name: string, x: Slice) {
 export function parseMeterIntegrityIssueWarning(
   ctx: Context,
   x: Slice,
-  indent: string
+  indent: string,
 ) {
   const otherInfo = parseNumber(x, 2)
   const names: Record<number, string> = {
@@ -100,7 +100,7 @@ export function parseCraFlag(ctx: Context, x: Slice, indent: string) {
     ctx,
     `${indent}CRA Flag`,
     getBytes(x, 1),
-    { 1: 'Command', 2: 'Response', 3: 'Alert' }[craFlag] || 'INVALID'
+    { 1: 'Command', 2: 'Response', 3: 'Alert' }[craFlag] || 'INVALID',
   )
   return craFlag
 }
