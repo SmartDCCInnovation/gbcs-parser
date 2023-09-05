@@ -27,3 +27,4 @@ export {
 } from './context'
 export { signGroupingHeader } from './crypto'
 export { utrn, PtutOptions } from './utrn'
+export { decodeECS24 } from './tariff'

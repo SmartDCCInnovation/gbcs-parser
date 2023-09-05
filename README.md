@@ -207,6 +207,26 @@ This produces the following:
 The interested reader is suggested to compare this with the output of
 [HenryGiraldo/gbcs-parser-js][gbcs-parser-js].
 
+#### Parsing ECS24 - Read ESME Tariff Data
+
+If the message parsed is a `ECS24`, there an additional decoder provided
+`decodeECS24`. This will take the output from the *parser* (described above) and
+construct a `Tariff` object. The definition of an ESME tariff is in
+[`@smartdcc/duis-templates`][templates] package.
+
+The `decodeECS24` function is intended to be used as follows:
+
+```typescript
+const ecs24 = decodeECS24(minimizeMessage(gbcs))
+
+if (ecs24) {
+  /* valid ecs24 payload found and decoded */
+  console.log(inspect(ecs24, { colors: true, depth: 10 }))
+} else {
+  /* no valid ecs24 found */
+}
+```
+
 ### Sign Message
 
 The library provides support for signing GBCS pre-commands. The current
@@ -283,3 +303,4 @@ Also, copyright for the original work remains with
 [gbcs]: https://smartenergycodecompany.co.uk/the-smart-energy-code-2/ "Smart Energy Code"
 [boxed]: https://www.smartdcc.co.uk/our-smart-network/network-products-services/dcc-boxed/ "DCC Boxed"
 [keystore]: https://github.com/SmartDCCInnovation/dccboxed-keystore "GitHub: DCCBoxed KeyStore"
+[templates]: https://github.com/SmartDCCInnovation/duis-templates "GitHub: DUIS Templates"
