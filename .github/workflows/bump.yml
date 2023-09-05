@@ -1,0 +1,47 @@
+name: "bumper"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: How to bump package version
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        required: true
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bumperz Login
+        id: bumperz
+        uses: getsentry/action-github-app-token@v2
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.APP_PRIVATE_KEY }}
+          scope: ${{ github.repository_owner }}
+
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ steps.bumperz.outputs.token }}
+
+      - name: Set Node.js 18.x
+        uses: actions/setup-node@v3.7.0
+        with:
+          node-version: 18.x
+
+      - name: NPM Bump
+        id: bump
+        run: |
+          git config user.email '140910925+bumpzbot[bot]@users.noreply.github.com'
+          git config user.name 'bumpzbot[bot]'
+          npm version ${{ inputs.version }}
+          echo "version=$(jq -r .version < package.json)" >> "$GITHUB_OUTPUT"     
+
+      - name: Push changes
+        run: |
+          git push origin main
+          git push origin v${{ steps.bump.outputs.version }}
