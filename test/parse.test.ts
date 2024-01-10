@@ -74,7 +74,7 @@ describe('parse', () => {
       01 01 FF 00 00 0A 00 80 00 FF 0F 00 00 00 20
       `
       await expect(parseGbcsMessage(message, keyStore)).rejects.toThrow(
-        'out of bounds'
+        'out of bounds',
       )
     })
 
@@ -91,8 +91,41 @@ describe('parse', () => {
       01 01 FF 00 00 0A 00 80 00 FF 0F 00 00 00 00
       `
       await expect(parseGbcsMessage(message, keyStore)).rejects.toThrow(
-        'slice out of bounds'
+        'slice out of bounds',
       )
+    })
+  })
+
+  describe('real-payloads', () => {
+    test('double-long', async () => {
+      const message =
+        '3QAAAAAAAEQRAAAAAN8JAgAAAYw0vVLYCBzBG7EAAB0CCJCz1R8wAQAAAAIAaRDaIL1S2AAAAQX+evxTAQEAAEGfoFG78UF8nO+4bw=='
+      const output = await parseGbcsMessage(message, keyStore)
+      expect('MAC Header' in output).toBeTruthy()
+      expect('Grouping Header' in output).toBeTruthy()
+      expect('Payload' in output).toBeTruthy()
+      expect('Signature' in output).toBeTruthy()
+      expect('DLMS Access Response' in output.Payload.children).toBeTruthy()
+      expect(
+        output.Payload.children['DLMS Access Response'].children?.[
+          'List of Access Response Data'
+        ],
+      ).toBeTruthy()
+      expect(
+        output.Payload.children?.['DLMS Access Response'].children?.[
+          'List of Access Response Data'
+        ].children?.['[0] Double Long'],
+      ).toBeTruthy()
+      expect(
+        output.Payload.children?.['DLMS Access Response'].children?.[
+          'List of Access Response Data'
+        ].children?.['[0] Double Long'].hex,
+      ).toBe('05 FE 7A FC 53')
+      expect(
+        output.Payload.children?.['DLMS Access Response'].children?.[
+          'List of Access Response Data'
+        ].children?.['[0] Double Long'].notes,
+      ).toBe('-25494445')
     })
   })
 })
