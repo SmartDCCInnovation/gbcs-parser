@@ -561,10 +561,9 @@ function parseDlmsNumber(
 ) {
   const offset = hasTag ? 1 : 0
   let value = parseNumber(x, size, offset)
-  if (hasSign && value > Math.abs(1 << (size * 8 - 1)) - 1) {
-    value -= 1 << (size * 8)
+  if (hasSign && value & (1 << (size * 8 - 1))) {
+    value -= Math.abs(1 << (size * 8 - 1)) * 2
   }
-  //value = tooltip(value, toHex(value, size * 8))
   putBytes(ctx, name, getBytes(x, offset + size), String(value))
 }
 
