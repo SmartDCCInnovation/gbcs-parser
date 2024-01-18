@@ -127,5 +127,87 @@ describe('parse', () => {
         ].children?.['[0] Double Long'].notes,
       ).toBe('-25494445')
     })
+
+    describe('cs02a', () => {
+      test('cell-usage-implicit', async () => {
+        const message =
+          '3QAAAAAAAIHHEQAAAADfCQIAAAGNHkxZdAiIc4T/AC+WHgiQs9UfMAAAAgACAAiBkjCBjzAlAgEACgEAAgEAMBowGAMCAgQECAAAAAAAAAAABAhKm97xVx77EzA/AgECCgEAAgEAMDQwGAMCB4AECJCz1R8wAQAABAhEiZeS0Zb0uDAYAwIDCAQIkLPVHzABAAAECEBbjGJofY9wMCUCAQUKAQACAQAwGjAYAwIHgAQIkLPVHzAAAAQECEs460dWHZPoAD1DusMm0XNJ8jJgLQ=='
+        const output = await parseGbcsMessage(message, keyStore)
+        expect('MAC Header' in output).toBeTruthy()
+        expect('Grouping Header' in output).toBeTruthy()
+        expect('Payload' in output).toBeTruthy()
+        expect('Signature' in output).toBeTruthy()
+        expect(
+          'Provide Security Credential Details Response' in
+            output.Payload.children,
+        ).toBeTruthy()
+        expect(
+          output.Payload.children?.[
+            'Provide Security Credential Details Response'
+          ].children?.['[0] Remote Party Details']?.children,
+        ).toMatchObject({
+          'Remote Party Role': { hex: '02 01 00', notes: 'Root' },
+          'Status Code': { hex: '0A 01 00', notes: 'Success' },
+          'Current Seq Number': { hex: '02 01 00', notes: '0' },
+          'Trust Anchor Cell Details': {
+            children: {
+              '[0] Trust Anchor Cell Contents': {
+                children: {
+                  'Key Usage': { hex: '03 02 02 04', notes: 'Key Cert Sign' },
+                  'Cell Usage': {
+                    hex: '',
+                    notes: 'Management (DEFAULT)',
+                  },
+                  'Subject Unique ID': { hex: '04 08 00 00 00 00 00 00 00 00' },
+                  'Subject Key Identifier': {
+                    hex: '04 08 4A 9B DE F1 57 1E FB 13',
+                  },
+                },
+              },
+            },
+          },
+        })
+      })
+
+      test('cell-usage-explicit', async () => {
+        const message =
+          '3QAAAAAAAIHYEQAAAADfCQIAAAGNHhsLFggAC2v/HjABIgiQs9UfMAAAAgACAAiBozCBoDAoAgEACgEAAgEAMB0wGwMCAgQCAQAECAAAAAAAAAAABAhIzxsyaXxGaTBFAgECCgEAAgEAMDowGwMCAwgCAQAECJCz1R8wAQAABAhAW4xiaH2PcDAbAwIHgAIBAAQIkLPVHzABAAAECESJl5LRlvS4MC0CAQUKAQACBgGNEsX1TjAdMBsDAgeAAgEABAiQs9UfMAAABAQISzjrR1Ydk+gAbb0Lu/KdLnwXjZOh'
+        const output = await parseGbcsMessage(message, keyStore)
+        expect('MAC Header' in output).toBeTruthy()
+        expect('Grouping Header' in output).toBeTruthy()
+        expect('Payload' in output).toBeTruthy()
+        expect('Signature' in output).toBeTruthy()
+        expect(
+          'Provide Security Credential Details Response' in
+            output.Payload.children,
+        ).toBeTruthy()
+        expect(
+          output.Payload.children?.[
+            'Provide Security Credential Details Response'
+          ].children?.['[0] Remote Party Details']?.children,
+        ).toMatchObject({
+          'Remote Party Role': { hex: '02 01 00', notes: 'Root' },
+          'Status Code': { hex: '0A 01 00', notes: 'Success' },
+          'Current Seq Number': { hex: '02 01 00', notes: '0' },
+          'Trust Anchor Cell Details': {
+            children: {
+              '[0] Trust Anchor Cell Contents': {
+                children: {
+                  'Key Usage': { hex: '03 02 02 04', notes: 'Key Cert Sign' },
+                  'Cell Usage': {
+                    hex: '02 01 00',
+                    notes: 'Management',
+                  },
+                  'Subject Unique ID': { hex: '04 08 00 00 00 00 00 00 00 00' },
+                  'Subject Key Identifier': {
+                    hex: '04 08 48 CF 1B 32 69 7C 46 69',
+                  },
+                },
+              },
+            },
+          },
+        })
+      })
+    })
   })
 })

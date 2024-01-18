@@ -524,10 +524,14 @@ function parseCellUsage(ctx: Context, x: Slice, indent: string) {
   if (
     x.index + 2 < x.end &&
     x.input.byte(x.index) === 2 &&
-    x.input.byte(x.index + 1) === 1 &&
-    x.input.byte(x.index + 2) === 1
+    x.input.byte(x.index + 1) === 1
   ) {
-    putBytes(ctx, `${indent}Cell Usage`, getBytes(x, 3), 'Prepayment Top Up')
+    if (x.input.byte(x.index + 2) === 1) {
+      putBytes(ctx, `${indent}Cell Usage`, getBytes(x, 3), 'Prepayment Top Up')
+    } else {
+      // assume x.input.byte(x.index + 2) === 0
+      putBytes(ctx, `${indent}Cell Usage`, getBytes(x, 3), 'Management')
+    }
   } else {
     putBytes(ctx, `${indent}Cell Usage`, getBytes(x, 0), 'Management (DEFAULT)')
   }
