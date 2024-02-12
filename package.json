@@ -19,7 +19,7 @@
     "@types/glob": "^8.0.0",
     "@types/jest": "^29.0.0",
     "@types/node": "^20.1.1",
-    "@typescript-eslint/eslint-plugin": "^6.1.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^6.1.0",
     "del-cli": "^5.0.0",
     "eslint": "^8.23.0",
