@@ -14,3 +14,6 @@ updates:
     open-pull-requests-limit: 10
     assignees:
       - kazkansouh
+    groups:
+      typescript-eslint:
+        patterns: ["@typescript-eslint/*"]
