@@ -3,7 +3,7 @@
 import eslint from '@eslint/js'
 import tseslint from 'typescript-eslint'
 import globals from 'globals'
-import prettiereslint from 'eslint-plugin-prettier'
+import prettiereslint from 'eslint-plugin-prettier/recommended'
 
 export default tseslint.config({
   languageOptions: {
@@ -18,7 +18,7 @@ export default tseslint.config({
   extends: [
     eslint.configs.recommended,
     ...tseslint.configs.recommended,
-    prettiereslint.recommended,
+    prettiereslint,
   ],
   rules: {
     eqeqeq: ['error', 'always'],
