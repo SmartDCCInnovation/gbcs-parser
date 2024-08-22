@@ -56,10 +56,10 @@ jobs:
         else
           echo "::set-output name=reporter::github-check"
         fi
-    - name: Set up NodeJS 16
+    - name: Set up NodeJS 20
       uses: actions/setup-node@v4
       with:
-        node-version: 16
+        node-version: 20
     - name: Install dependencies
       run: npm ci
     - name: Run eslint with reviewdog
@@ -75,10 +75,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Set up NodeJS ${{ matrix.node }}
+    - name: Set up NodeJS 20
       uses: actions/setup-node@v4
       with:
-        node-version: 16
+        node-version: 20
     - name: Install development dependencies
       run: npm ci
     - name: Build
