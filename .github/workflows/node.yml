@@ -93,7 +93,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [ 16, 18, 20 ]
+        node: [ 16, 18, 20, 22 ]
     steps:
     - uses: actions/checkout@v4
     - name: Install reviewdog
@@ -117,7 +117,7 @@ jobs:
     - name: Run tests
       run: npm run test:cov
     - name: Upload coverage to Codecov
-      if: matrix.node == '16' && (github.event_name != 'push' || github.ref_type != 'tag' || !startsWith(github.ref_name, 'v'))
+      if: matrix.node == '20' && (github.event_name != 'push' || github.ref_type != 'tag' || !startsWith(github.ref_name, 'v'))
       uses: codecov/codecov-action@v4
 
   release:
@@ -131,10 +131,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Set up NodeJS 16
+    - name: Set up NodeJS 20
       uses: actions/setup-node@v4
       with:
-        node-version: 16
+        node-version: 20
     - name: Install dependencies
       run: npm ci
     - name: Build package
