@@ -15,7 +15,7 @@
   "type": "commonjs",
   "devDependencies": {
     "@smartdcc/duis-templates": "^0.5.0",
-    "@tsconfig/node16": "^16.1.0",
+    "@tsconfig/node20": "^20.1.4",
     "@types/glob": "^8.0.0",
     "@types/jest": "^29.0.0",
     "@types/node": "^20.1.1",
