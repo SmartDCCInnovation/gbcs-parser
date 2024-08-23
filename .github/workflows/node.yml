@@ -119,6 +119,8 @@ jobs:
     - name: Upload coverage to Codecov
       if: matrix.node == '20' && (github.event_name != 'push' || github.ref_type != 'tag' || !startsWith(github.ref_name, 'v'))
       uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   release:
     name: Upload Release Package
