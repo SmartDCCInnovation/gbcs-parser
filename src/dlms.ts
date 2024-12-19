@@ -34,7 +34,7 @@ import {
   parseMessageCode,
   parseCraFlag,
 } from './common'
-import { CipherInfo, Context, putBytes, putUnparsedBytes } from './context'
+import { Context, putBytes, putUnparsedBytes } from './context'
 import { decryptGbcsData } from './crypto'
 import {
   daysInWeek,
@@ -253,11 +253,6 @@ function parseProtectionParameters(ctx: Context, x: Slice, indent: string) {
     2: 'Authentication and Encryption',
   })
   putBytes(ctx, `${indent} Protection Options`, getBytes(x, 2))
-  const cipherInfo: CipherInfo = {
-    origCounter: x.input.buffer.subarray(x.index + 3, x.index + 11),
-    origSysTitle: x.input.buffer.subarray(x.index + 13, x.index + 21),
-    recipSysTitle: x.input.buffer.subarray(x.index + 23, x.index + 31),
-  }
   putBytes(ctx, `${indent} Transaction Id`, getBytes(x, 11))
   putBytes(ctx, `${indent} Originator System Title`, getBytes(x, 10))
   putBytes(ctx, `${indent} Recipient System Title`, getBytes(x, 10))
@@ -272,7 +267,6 @@ function parseProtectionParameters(ctx: Context, x: Slice, indent: string) {
     'C(0e, 2s ECC CDH)',
   )
   putBytes(ctx, `${indent}   Key Ciphered Data`, getBytes(x, 2))
-  return cipherInfo
 }
 
 function parseDlmsProtectedAttributesResponse(
@@ -292,7 +286,7 @@ function parseDlmsProtectedAttributesResponse(
 
 function parseDlmsProtectedData(ctx: Context, x: Slice, indent: string) {
   indent = indent + ' '
-  /*const cipherInfo = */ parseProtectionParameters(ctx, x, indent)
+  parseProtectionParameters(ctx, x, indent)
   const lenSz = parseLength(x, 1)
   const len = lenSz.length
   const off = lenSz.size + 1

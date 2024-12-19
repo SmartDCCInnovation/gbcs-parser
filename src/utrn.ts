@@ -102,6 +102,7 @@ async function ptut(options: PtutOptions): Promise<bigint> {
       BigInt(options.counter).toString(16).padStart(16, '0').slice(-16),
       'hex',
     ),
+    cra: 'command',
   }
   /* retrieve device public ka key */
   const pubKey = await options.lookupKey(cipherInfo.recipSysTitle, 'KA', {})

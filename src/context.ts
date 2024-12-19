@@ -32,6 +32,9 @@ export interface CipherInfo {
   origCounter: Uint8Array
   origSysTitle: Uint8Array
   recipSysTitle: Uint8Array
+  supplimentryRemotePartyId?: Uint8Array
+  supplimentryOriginatorCounter?: Uint8Array
+  cra: 'command' | 'response' | 'alert'
 }
 
 export interface ParsedItem {
@@ -62,6 +65,7 @@ export type DecryptCB = (cipherInfo: CipherInfo, aesKey: KeyObject) => void
 
 export interface Context {
   lookupKey: KeyStore
+  acbEui?: string | Uint8Array
   output: ParsedMessage
   current: (
     | ParsedBlock
