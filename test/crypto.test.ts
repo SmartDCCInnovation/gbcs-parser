@@ -110,6 +110,7 @@ describe('deriveKeyFromPair', () => {
       origCounter: Buffer.from('0000000100000000', 'hex'),
       origSysTitle: Buffer.from('90b3d51f30010000', 'hex'),
       recipSysTitle: Buffer.from('00db1234567890a0', 'hex'),
+      cra: 'command',
     }
     expect(
       crypto
@@ -117,9 +118,9 @@ describe('deriveKeyFromPair', () => {
           createPrivateKey(org_90b3d51f30000002_ka_key),
           createPublicKey(device_00db1234567890a0_ka_cert),
           cipherInfo,
-          'command'
+          'command',
         )
-        .export()
+        .export(),
     ).toStrictEqual(Buffer.from('6A93E360717394015DF93E031218C9A6', 'hex'))
   })
 
@@ -128,6 +129,7 @@ describe('deriveKeyFromPair', () => {
       origCounter: Buffer.from('0000000100000000', 'hex'),
       origSysTitle: Buffer.from('90b3d51f30010000', 'hex'),
       recipSysTitle: Buffer.from('00db1234567890a0', 'hex'),
+      cra: 'command',
     }
     expect(
       crypto
@@ -135,9 +137,9 @@ describe('deriveKeyFromPair', () => {
           createPrivateKey(device_00db1234567890a0_ka_key),
           createPublicKey(org_90b3d51f30000002_ka_cert),
           cipherInfo,
-          'command'
+          'command',
         )
-        .export()
+        .export(),
     ).toStrictEqual(Buffer.from('6A93E360717394015DF93E031218C9A6', 'hex'))
   })
 
@@ -146,6 +148,7 @@ describe('deriveKeyFromPair', () => {
       origCounter: Buffer.from('0000000100000000', 'hex'),
       origSysTitle: Buffer.from('00db1234567890a0', 'hex'),
       recipSysTitle: Buffer.from('90b3d51f30010000', 'hex'),
+      cra: 'command',
     }
     expect(
       crypto
@@ -153,9 +156,9 @@ describe('deriveKeyFromPair', () => {
           createPrivateKey(org_90b3d51f30010000_ka_key),
           createPublicKey(device_00db1234567890a0_ka_cert),
           cipherInfo,
-          'response'
+          'response',
         )
-        .export()
+        .export(),
     ).toStrictEqual(Buffer.from('03FD30815577C49EB7E3834B63EF8302', 'hex'))
   })
 
@@ -164,6 +167,7 @@ describe('deriveKeyFromPair', () => {
       origCounter: Buffer.from('0000000100000000', 'hex'),
       origSysTitle: Buffer.from('00db1234567890a0', 'hex'),
       recipSysTitle: Buffer.from('90b3d51f30010000', 'hex'),
+      cra: 'command',
     }
     expect(
       crypto
@@ -171,9 +175,9 @@ describe('deriveKeyFromPair', () => {
           createPrivateKey(device_00db1234567890a0_ka_key),
           createPublicKey(org_90b3d51f30010000_ka_cert),
           cipherInfo,
-          'response'
+          'response',
         )
-        .export()
+        .export(),
     ).toStrictEqual(Buffer.from('03FD30815577C49EB7E3834B63EF8302', 'hex'))
   })
 
@@ -182,6 +186,7 @@ describe('deriveKeyFromPair', () => {
       origCounter: Buffer.from('00000000000007D1', 'hex'),
       origSysTitle: Buffer.from('00db1234567890a0', 'hex'),
       recipSysTitle: Buffer.from('90b3d51f30010000', 'hex'),
+      cra: 'command',
     }
     expect(
       crypto
@@ -189,9 +194,9 @@ describe('deriveKeyFromPair', () => {
           createPrivateKey(org_90b3d51f30010000_ka_key),
           createPublicKey(device_00db1234567890a0_ka_cert),
           cipherInfo,
-          'alert'
+          'alert',
         )
-        .export()
+        .export(),
     ).toStrictEqual(Buffer.from('558FB1FA6660AF0D9E8365C47804B8FA', 'hex'))
   })
 
@@ -200,6 +205,7 @@ describe('deriveKeyFromPair', () => {
       origCounter: Buffer.from('00000000000007D1', 'hex'),
       origSysTitle: Buffer.from('00db1234567890a0', 'hex'),
       recipSysTitle: Buffer.from('90b3d51f30010000', 'hex'),
+      cra: 'command',
     }
     expect(
       crypto
@@ -207,9 +213,9 @@ describe('deriveKeyFromPair', () => {
           createPrivateKey(device_00db1234567890a0_ka_key),
           createPublicKey(org_90b3d51f30010000_ka_cert),
           cipherInfo,
-          'alert'
+          'alert',
         )
-        .export()
+        .export(),
     ).toStrictEqual(Buffer.from('558FB1FA6660AF0D9E8365C47804B8FA', 'hex'))
   })
 
@@ -218,6 +224,7 @@ describe('deriveKeyFromPair', () => {
       origCounter: Buffer.from('00000000000007D1', 'hex'),
       origSysTitle: Buffer.from('00db1234567890a0', 'hex'),
       recipSysTitle: Buffer.from('90b3d51f30010000', 'hex'),
+      cra: 'command',
     }
     expect(
       crypto
@@ -225,9 +232,9 @@ describe('deriveKeyFromPair', () => {
           device_00db1234567890a0_ka_key,
           org_90b3d51f30010000_ka_cert,
           cipherInfo,
-          'alert'
+          'alert',
         )
-        .export()
+        .export(),
     ).toStrictEqual(Buffer.from('558FB1FA6660AF0D9E8365C47804B8FA', 'hex'))
   })
 })
@@ -244,11 +251,12 @@ describe('gcm', () => {
           origCounter: Buffer.from('0102030405060708', 'hex'),
           origSysTitle: Buffer.from('90b3d51f30030000', 'hex'),
           recipSysTitle: Buffer.from('00db1234567890a1', 'hex'),
+          cra: 'command',
         },
         Buffer.from([]),
         Buffer.from('helloworld', 'ascii'),
-        createSecretKey('000102030405060708090a0b0c0d0e0f', 'hex')
-      )
+        createSecretKey('000102030405060708090a0b0c0d0e0f', 'hex'),
+      ),
     ).toStrictEqual({
       cipherText: Buffer.from([]),
       tag: Buffer.from('fb3afed43b78508864f00da3', 'hex'),
@@ -262,12 +270,13 @@ describe('gcm', () => {
           origCounter: Buffer.from('0102030405060708', 'hex'),
           origSysTitle: Buffer.from('90b3d51f30030000', 'hex'),
           recipSysTitle: Buffer.from('00db1234567890a1', 'hex'),
+          cra: 'command',
         },
         Buffer.from([]),
         Buffer.from('helloworld', 'ascii'),
         createSecretKey('000102030405060708090a0b0c0d0e0f', 'hex'),
-        4
-      )
+        4,
+      ),
     ).toStrictEqual({
       cipherText: Buffer.from([]),
       tag: Buffer.from('fb3afed4', 'hex'),
@@ -281,15 +290,73 @@ describe('gcm', () => {
           origCounter: Buffer.from('0102030405060708', 'hex'),
           origSysTitle: Buffer.from('90b3d51f30030000', 'hex'),
           recipSysTitle: Buffer.from('00db1234567890a1', 'hex'),
+          cra: 'command',
         },
         Buffer.from('one two three', 'ascii'),
         Buffer.from('helloworld', 'ascii'),
-        createSecretKey('000102030405060708090a0b0c0d0e0f', 'hex')
-      )
+        createSecretKey('000102030405060708090a0b0c0d0e0f', 'hex'),
+      ),
     ).toStrictEqual({
       cipherText: Buffer.from('584fa806b24491178829d46c38', 'hex'),
       tag: Buffer.from('6b33bdcb1e223242ec20b957', 'hex'),
     })
+  })
+})
+
+describe('ungcm', () => {
+  test('is defined', () => {
+    expect(crypto.ungcm).toBeDefined()
+  })
+
+  test('nominal-aad-only', () => {
+    expect(
+      crypto.ungcm(
+        {
+          origCounter: Buffer.from('0102030405060708', 'hex'),
+          origSysTitle: Buffer.from('90b3d51f30030000', 'hex'),
+          recipSysTitle: Buffer.from('00db1234567890a1', 'hex'),
+          cra: 'command',
+        },
+        Buffer.from([]),
+        Buffer.from('helloworld', 'ascii'),
+        createSecretKey('000102030405060708090a0b0c0d0e0f', 'hex'),
+        Buffer.from('fb3afed43b78508864f00da3', 'hex'),
+      ),
+    ).toStrictEqual(Buffer.from([]))
+  })
+
+  test('nominal', () => {
+    expect(
+      crypto.ungcm(
+        {
+          origCounter: Buffer.from('0102030405060708', 'hex'),
+          origSysTitle: Buffer.from('90b3d51f30030000', 'hex'),
+          recipSysTitle: Buffer.from('00db1234567890a1', 'hex'),
+          cra: 'command',
+        },
+        Buffer.from('584fa806b24491178829d46c38', 'hex'),
+        Buffer.from('helloworld', 'ascii'),
+        createSecretKey('000102030405060708090a0b0c0d0e0f', 'hex'),
+        Buffer.from('6b33bdcb1e223242ec20b957', 'hex'),
+      ),
+    ).toStrictEqual(Buffer.from('one two three', 'ascii'))
+  })
+
+  test('invalid-mac', () => {
+    expect(() =>
+      crypto.ungcm(
+        {
+          origCounter: Buffer.from('0102030405060708', 'hex'),
+          origSysTitle: Buffer.from('90b3d51f30030000', 'hex'),
+          recipSysTitle: Buffer.from('00db1234567890a1', 'hex'),
+          cra: 'command',
+        },
+        Buffer.from([]),
+        Buffer.from('helloworld', 'ascii'),
+        createSecretKey('000102030405060708090a0b0c0d0e0f', 'hex'),
+        Buffer.from('fb3afed43b78508864f00da4', 'hex'),
+      ),
+    ).toThrow(/unable to authenticate/)
   })
 })
 
@@ -304,8 +371,8 @@ describe('signGroupingHeader', () => {
       crypto.signGroupingHeader(
         '90B3D51F30010000',
         message.toString('base64'),
-        keyStore
-      )
+        keyStore,
+      ),
     ).rejects.toThrow()
   })
 
@@ -315,8 +382,8 @@ describe('signGroupingHeader', () => {
       crypto.signGroupingHeader(
         '90B3D51F30010000',
         message.toString('base64'),
-        keyStore
-      )
+        keyStore,
+      ),
     ).rejects.toThrow()
   })
 
@@ -332,12 +399,12 @@ describe('signGroupingHeader', () => {
       09 0C FF FF FF FF FF FF FF FF FF 80 00 FF 09 0C
       07 DE 0C 1F FF 17 3B 0A 00 80 00 FF 09 0C 07 DF
       01 01 FF 00 00 0A 00 80 00 FF 0F 00 00 00`.replace(/[ \n\t]/g, ''),
-      'hex'
+      'hex',
     )
     const signed = await crypto.signGroupingHeader(
       '90B3D51F30010000',
       message.toString('base64'),
-      keyStore
+      keyStore,
     )
     const signedBuffer = Buffer.from(signed, 'base64')
     expect(signedBuffer.length).toBe(message.length + 1 + 64)
@@ -352,8 +419,8 @@ describe('signGroupingHeader', () => {
           key: createPublicKey(org_90b3d51f30010000_ds_cert),
           dsaEncoding: 'ieee-p1363',
         },
-        signature
-      )
+        signature,
+      ),
     ).toBeTruthy()
   })
 
@@ -369,12 +436,12 @@ describe('signGroupingHeader', () => {
       09 0C FF FF FF FF FF FF FF FF FF 80 00 FF 09 0C
       07 DE 0C 1F FF 17 3B 0A 00 80 00 FF 09 0C 07 DF
       01 01 FF 00 00 0A 00 80 00 FF 0F 00 00 00 00`.replace(/[ \n\t]/g, ''),
-      'hex'
+      'hex',
     )
     const signed = await crypto.signGroupingHeader(
       '90B3D51F30010000',
       message.toString('base64'),
-      keyStore
+      keyStore,
     )
     const signedBuffer = Buffer.from(signed, 'base64')
     expect(signedBuffer.length).toBe(message.length + 64)
@@ -389,8 +456,8 @@ describe('signGroupingHeader', () => {
           key: createPublicKey(org_90b3d51f30010000_ds_cert),
           dsaEncoding: 'ieee-p1363',
         },
-        signature
-      )
+        signature,
+      ),
     ).toBeTruthy()
   })
 
@@ -404,14 +471,14 @@ describe('signGroupingHeader', () => {
       96 0c 02 5b 1a 90 1f 8f 21 7d d7 eb 02 0b cf 50
       62 0c 3a 9c 51 bd 3f a5 0b ae 67 ec df 34 3d 3e
       02 73 1d 9c c9 b2 41 c2 b2`.replace(/[ \n\t]/g, ''),
-      'hex'
+      'hex',
     )
     await expect(
       crypto.signGroupingHeader(
         '90B3D51F30010000',
         message.toString('base64'),
-        keyStore
-      )
+        keyStore,
+      ),
     ).rejects.toThrow('already signed')
   })
 })

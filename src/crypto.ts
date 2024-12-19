@@ -72,6 +72,35 @@ export function gcm(
   return { cipherText, tag }
 }
 
+/**
+ * standard gcm decrypt for use with GBCS - sets the cipher size and fixes the iv
+ *
+ * @param cipherInfo - originator/target/counter from grouping header
+ * @param cipherText - text to decrypt - set as empty buffer if none
+ * @param aad - additional auth data - set as empty buffer if none
+ * @param aesKey - output from createSecretKey
+ * @param tag - auth tag - default is 12
+ * @returns plainText or throws error in case of auth fail
+ */
+export function ungcm(
+  cipherInfo: CipherInfo,
+  cipherText: Uint8Array,
+  aad: Uint8Array,
+  aesKey: KeyObject,
+  tag: Uint8Array,
+): Uint8Array {
+  const iv = new Uint8Array(12)
+  iv.set(cipherInfo.origSysTitle, 0)
+  iv.set([0, 0, 0, 0], 8)
+
+  const decipher = createDecipheriv('aes-128-gcm', aesKey, iv)
+  decipher.setAAD(aad)
+  decipher.setAuthTag(tag)
+  const plainText = decipher.update(cipherText)
+  decipher.final()
+  return plainText
+}
+
 export function decryptPayloadWithKey(
   cipherInfo: CipherInfo,
   ciphertextTag: Uint8Array,
@@ -108,7 +137,7 @@ export function deriveKeyFromPair(
   privkey: string | KeyObject,
   pubkey: string | KeyObject,
   cipherInfo: CipherInfo,
-  mode?: 'command' | 'response' | 'alert' | 'encryption',
+  mode: 'command' | 'response' | 'alert' | 'encryption',
 ) {
   if (typeof privkey === 'string') {
     privkey = createPrivateKey({ key: privkey, format: 'pem' })
@@ -116,10 +145,6 @@ export function deriveKeyFromPair(
 
   if (typeof pubkey === 'string') {
     pubkey = createPublicKey({ key: pubkey, format: 'pem' })
-  }
-
-  if (!mode) {
-    mode = 'encryption'
   }
 
   assert(privkey.asymmetricKeyType === 'ec', 'expected ec private key')
@@ -152,13 +177,18 @@ export function deriveKeyFromPair(
       otherInfo.set([0x04], 7 + 8 + 1)
       break
   }
-  otherInfo.set(cipherInfo.origCounter, 7 + 8 + 2)
-  otherInfo.set(cipherInfo.recipSysTitle, 7 + 8 + 2 + 8)
-
-  const data = new Uint8Array(4 + secret.byteLength + otherInfo.byteLength)
-  data.set([0, 0, 0, 1], 0)
-  data.set(secret, 4)
-  data.set(otherInfo, 4 + secret.byteLength)
+  otherInfo.set(
+    mode === 'encryption'
+      ? (cipherInfo.supplimentryOriginatorCounter ?? cipherInfo.origCounter)
+      : cipherInfo.origCounter,
+    7 + 8 + 2,
+  )
+  otherInfo.set(
+    mode === 'encryption'
+      ? (cipherInfo.supplimentryRemotePartyId ?? cipherInfo.recipSysTitle)
+      : cipherInfo.recipSysTitle,
+    7 + 8 + 2 + 8,
+  )
 
   const sha256 = createHash('sha256')
   sha256.update(new Uint8Array([0, 0, 0, 1]))

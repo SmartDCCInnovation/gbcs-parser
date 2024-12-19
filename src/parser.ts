@@ -25,7 +25,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { verify } from 'crypto'
+import { KeyObject, verify } from 'crypto'
 import {
   CipherInfo,
   Context,
@@ -35,7 +35,7 @@ import {
   putSeparator,
   putUnparsedBytes,
 } from './context'
-import { deriveKeyFromPair } from './crypto'
+import { deriveKeyFromPair, ungcm } from './crypto'
 import {
   parseCounter,
   parseCraFlag,
@@ -56,9 +56,73 @@ async function parseGeneralCiphering(
   const len = parseEncodedLength(ctx, x, 'Ciphered Service Length')
   const y = getBytes(x, len)
   putBytes(ctx, 'Security Header', getBytes(y, 5))
+  const macDataStart = y.index
   const cipherInfo = await parseGeneralSigning(ctx, getBytes(y, len - 5 - 12))
+  const macDataEnd = y.index
+
   putSeparator(ctx, 'MAC')
-  putBytes(ctx, 'MAC', getBytes(y, 12))
+  const mac = getBytes(y, 12)
+  const aad = new Uint8Array(6 + (macDataEnd - macDataStart))
+  aad.set([0x11, 0, 0, 0, 0, 0], 0)
+  aad.set(y.input.buffer.subarray(macDataStart, macDataEnd), 6)
+
+  if (cipherInfo.cra === 'command' && ctx.acbEui === undefined) {
+    putBytes(ctx, 'MAC', mac, 'unknown acb')
+  } else {
+    let pubKey: KeyObject | undefined = undefined
+    let prvKey: KeyObject | undefined = undefined
+    try {
+      pubKey = await ctx.lookupKey(
+        cipherInfo.cra === 'command' && ctx.acbEui !== undefined
+          ? ctx.acbEui
+          : cipherInfo.origSysTitle,
+        'KA',
+        {},
+      )
+      prvKey = await ctx.lookupKey(cipherInfo.recipSysTitle, 'KA', {
+        privateKey: true,
+      })
+    } catch {
+      try {
+        prvKey = await ctx.lookupKey(
+          cipherInfo.cra === 'command' && ctx.acbEui !== undefined
+            ? ctx.acbEui
+            : cipherInfo.origSysTitle,
+          'KA',
+          {
+            privateKey: true,
+          },
+        )
+        pubKey = await ctx.lookupKey(cipherInfo.recipSysTitle, 'KA', {})
+      } catch {
+        pubKey = undefined
+        prvKey = undefined
+      }
+    }
+
+    if (pubKey !== undefined && prvKey !== undefined) {
+      const aesKey = deriveKeyFromPair(
+        prvKey,
+        pubKey,
+        cipherInfo,
+        cipherInfo.cra,
+      )
+      try {
+        ungcm(
+          cipherInfo,
+          new Uint8Array(0),
+          aad,
+          aesKey,
+          mac.input.buffer.subarray(mac.index, mac.end),
+        )
+        putBytes(ctx, 'MAC', mac, 'valid')
+      } catch {
+        putBytes(ctx, 'MAC', mac, 'invalid')
+      }
+    } else {
+      putBytes(ctx, 'MAC', mac, 'unknown')
+    }
+  }
   return cipherInfo
 }
 
@@ -74,6 +138,7 @@ async function parseGeneralSigning(
     origCounter: x.input.buffer.subarray(x.index, x.index + 8),
     origSysTitle: x.input.buffer.subarray(x.index + 9, x.index + 17),
     recipSysTitle: x.input.buffer.subarray(x.index + 18, x.index + 26),
+    cra: craFlag === 2 ? 'response' : craFlag === 3 ? 'alert' : 'command',
   }
   parseCounter(ctx, 'Originator Counter', x)
   putBytes(ctx, 'Originator System Title', getBytes(x, 9))
@@ -83,7 +148,7 @@ async function parseGeneralSigning(
   const otherInfo = getBytes(x, otherInfoLen)
   const messageCode = parseMessageCode(ctx, ' Message Code', otherInfo)
   if (otherInfoLen >= 10) {
-    cipherInfo.recipSysTitle = otherInfo.input.buffer.subarray(
+    cipherInfo.supplimentryRemotePartyId = otherInfo.input.buffer.subarray(
       otherInfo.index,
       otherInfo.index + 8,
     )
@@ -91,10 +156,8 @@ async function parseGeneralSigning(
     if (otherInfoLen >= 18) {
       parseCounter(ctx, ' Supplementary Remote Party Counter', otherInfo)
       if (otherInfoLen === 26) {
-        cipherInfo.origCounter = otherInfo.input.buffer.subarray(
-          otherInfo.index,
-          otherInfo.index + 8,
-        )
+        cipherInfo.supplimentryOriginatorCounter =
+          otherInfo.input.buffer.subarray(otherInfo.index, otherInfo.index + 8)
         parseCounter(ctx, ' Supplementary Originator Counter', otherInfo)
       } else if (otherInfoLen > 26) {
         asn1.parseCertificate(
@@ -294,9 +357,11 @@ function parseEncodedLength(ctx: Context, x: Slice, name: string) {
 export async function parseGbcsMessage(
   text: string,
   lookupKey: KeyStore,
+  acbEui?: string | Uint8Array,
 ): Promise<ParsedMessage> {
   const ctx: Context = {
     lookupKey,
+    acbEui,
     output: {},
     current: [],
     decryptionList: [],
@@ -336,11 +401,15 @@ async function handleDecryptGbcsData(
   lookupKey: KeyStore,
 ): Promise<void> {
   const pubKey = await lookupKey(cipherInfo.origSysTitle, 'KA', {})
-  const prvKey = await lookupKey(cipherInfo.recipSysTitle, 'KA', {
-    privateKey: true,
-  })
+  const prvKey = await lookupKey(
+    cipherInfo.supplimentryRemotePartyId ?? cipherInfo.recipSysTitle,
+    'KA',
+    {
+      privateKey: true,
+    },
+  )
 
-  const aesKey = deriveKeyFromPair(prvKey, pubKey, cipherInfo)
+  const aesKey = deriveKeyFromPair(prvKey, pubKey, cipherInfo, 'encryption')
 
   for (let i = 0; i < ctx.decryptionList.length; i++) {
     putSeparator(ctx, `Decrypted Payload ${i}`)
