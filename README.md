@@ -28,10 +28,11 @@ Additional features have been added, which include:
 
 * [Sign `Pre-Commands` messages](#sign-message)
 * [Generate UTRN tokens](#generate-utrn)
+* MAC Verification
 
 ## Usage
 
-Please note, developed against `node 16` and makes use of its `crypto` api.
+Please note, developed against `node 18` and makes use of its `crypto` api.
 
 Install from `npm`:
 
