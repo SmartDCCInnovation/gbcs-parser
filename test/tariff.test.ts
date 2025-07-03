@@ -36,14 +36,14 @@ describe('decodeDLMSDateTime', () => {
     expect(
       decodeDLMSDateTime(Buffer.from('07de0813ffffffffffffff', 'hex'), logger),
     ).toBeNull()
-    expect(logger).toBeCalledWith(expect.stringContaining('bytes'))
+    expect(logger).toHaveBeenCalledWith(expect.stringContaining('bytes'))
   })
 
   test('daylight_savings_end not supported', () => {
     expect(
       decodeDLMSDateTime(Buffer.from('fffffdffff', 'hex'), logger),
     ).toBeNull()
-    expect(logger).toBeCalledWith(
+    expect(logger).toHaveBeenCalledWith(
       expect.stringContaining('daylight_savings_end'),
     )
   })
@@ -52,7 +52,7 @@ describe('decodeDLMSDateTime', () => {
     expect(
       decodeDLMSDateTime(Buffer.from('fffffeffff', 'hex'), logger),
     ).toBeNull()
-    expect(logger).toBeCalledWith(
+    expect(logger).toHaveBeenCalledWith(
       expect.stringContaining('daylight_savings_begin'),
     )
   })
@@ -64,7 +64,9 @@ describe('decodeDLMSDateTime', () => {
         logger,
       ),
     ).toBeNull()
-    expect(logger).toBeCalledWith(expect.stringContaining('time should be 0'))
+    expect(logger).toHaveBeenCalledWith(
+      expect.stringContaining('time should be 0'),
+    )
   })
 
   test('non-utc-date-time not supported', () => {
@@ -74,7 +76,9 @@ describe('decodeDLMSDateTime', () => {
         logger,
       ),
     ).toBeNull()
-    expect(logger).toBeCalledWith(expect.stringContaining('should be in UTC'))
+    expect(logger).toHaveBeenCalledWith(
+      expect.stringContaining('should be in UTC'),
+    )
   })
 
   test('specified-clock-status not supported', () => {
@@ -84,7 +88,7 @@ describe('decodeDLMSDateTime', () => {
         logger,
       ),
     ).toBeNull()
-    expect(logger).toBeCalledWith(expect.stringContaining('clock status'))
+    expect(logger).toHaveBeenCalledWith(expect.stringContaining('clock status'))
   })
 
   describe('dlms-nominal', () => {
@@ -105,7 +109,7 @@ describe('decodeDLMSDateTime', () => {
             month: 8,
             dayOfMonth: 19,
           })
-          expect(logger).not.toBeCalled()
+          expect(logger).not.toHaveBeenCalled()
         })
 
         test('last-day-of-the-month-in-every-year-and-month', () => {
@@ -117,7 +121,7 @@ describe('decodeDLMSDateTime', () => {
           ).toStrictEqual({
             dayOfMonth: 0xfe,
           })
-          expect(logger).not.toBeCalled()
+          expect(logger).not.toHaveBeenCalled()
         })
 
         test('last-sunday-in-every-year-and-month', () => {
@@ -130,7 +134,7 @@ describe('decodeDLMSDateTime', () => {
             dayOfMonth: 0xfe,
             dayOfWeek: 7,
           })
-          expect(logger).not.toBeCalled()
+          expect(logger).not.toHaveBeenCalled()
         })
 
         test('last-sunday-in-march-in-every-year', () => {
@@ -144,7 +148,7 @@ describe('decodeDLMSDateTime', () => {
             dayOfMonth: 0xfe,
             dayOfWeek: 7,
           })
-          expect(logger).not.toBeCalled()
+          expect(logger).not.toHaveBeenCalled()
         })
 
         test('forth-friday-in-march-in-every-year', () => {
@@ -158,7 +162,7 @@ describe('decodeDLMSDateTime', () => {
             dayOfMonth: 22,
             dayOfWeek: 5,
           })
-          expect(logger).not.toBeCalled()
+          expect(logger).not.toHaveBeenCalled()
         })
 
         test('forth-sunday-in-october-in-every-year', () => {
@@ -172,7 +176,7 @@ describe('decodeDLMSDateTime', () => {
             dayOfMonth: 22,
             dayOfWeek: 7,
           })
-          expect(logger).not.toBeCalled()
+          expect(logger).not.toHaveBeenCalled()
         })
       })
     })
@@ -212,7 +216,9 @@ describe('decodeECS24', () => {
       const output = minimizeMessage(await parseGbcsMessage(message, keyStore))
 
       expect(decodeECS24(output, logger)).toBeNull()
-      expect(logger).toBeCalledWith(expect.stringContaining('message code'))
+      expect(logger).toHaveBeenCalledWith(
+        expect.stringContaining('message code'),
+      )
     })
 
     test('ECS24_4.11.1_SUCCESS_COMMAND is null', async () => {
@@ -224,7 +230,7 @@ describe('decodeECS24', () => {
       const output = minimizeMessage(await parseGbcsMessage(message, keyStore))
 
       expect(decodeECS24(output, logger)).toBeNull()
-      expect(logger).toBeCalledWith(expect.stringContaining('response'))
+      expect(logger).toHaveBeenCalledWith(expect.stringContaining('response'))
     })
 
     test('ECS24_4.11.1_ERROR_RESPONSE is null', async () => {
@@ -236,12 +242,14 @@ describe('decodeECS24', () => {
       const output = minimizeMessage(await parseGbcsMessage(message, keyStore))
 
       expect(decodeECS24(output, logger)).toBeNull()
-      expect(logger).toBeCalledTimes(3)
-      expect(logger).toBeCalledWith(expect.stringContaining('not successful'))
-      expect(logger).toBeCalledWith(
+      expect(logger).toHaveBeenCalledTimes(3)
+      expect(logger).toHaveBeenCalledWith(
+        expect.stringContaining('not successful'),
+      )
+      expect(logger).toHaveBeenCalledWith(
         expect.stringContaining('[15] Access Response Specification'),
       )
-      expect(logger).toBeCalledWith(
+      expect(logger).toHaveBeenCalledWith(
         expect.stringContaining('[16] Access Response Specification'),
       )
     })
@@ -341,7 +349,7 @@ describe('decodeECS24', () => {
           },
         ],
       })
-      expect(logger).toBeCalledTimes(1)
+      expect(logger).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -378,6 +386,6 @@ describe('decodeECS24', () => {
         { thresholds: [0], prices: [0, 0] },
       ],
     })
-    expect(logger).toBeCalledTimes(2) /* once for each season */
+    expect(logger).toHaveBeenCalledTimes(2) /* once for each season */
   })
 })
