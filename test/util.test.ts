@@ -12,11 +12,11 @@ describe('alerts', () => {
 
 describe('toHex', () => {
   test('no bits error', () => {
-    expect(() => util.toHex(0, 0)).toThrowError('bits out of range')
+    expect(() => util.toHex(0, 0)).toThrow('bits out of range')
   })
 
   test('bits not multiple of 4', () => {
-    expect(() => util.toHex(0, 3)).toThrowError('bits out of range')
+    expect(() => util.toHex(0, 3)).toThrow('bits out of range')
   })
 
   describe('nominal', () => {
@@ -236,19 +236,19 @@ describe('getDecimalString', () => {
 
   test('two-byte-low', () => {
     expect(util.getDecimalString(util.parseHexString('00f5'))).toBe(
-      String(0xf5)
+      String(0xf5),
     )
   })
 
   test('two-byte', () => {
     expect(util.getDecimalString(util.parseHexString('07f5'))).toBe(
-      String(0x7f5)
+      String(0x7f5),
     )
   })
 
   test('four-byte', () => {
     expect(util.getDecimalString(util.parseHexString('beefcafe'))).toBe(
-      String(0xbeefcafe)
+      String(0xbeefcafe),
     )
   })
 })
