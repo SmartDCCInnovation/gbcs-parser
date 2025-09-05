@@ -57,7 +57,7 @@ jobs:
           echo "::set-output name=reporter::github-check"
         fi
     - name: Set up NodeJS 20
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v5
       with:
         node-version: 20
     - name: Install dependencies
@@ -76,7 +76,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: Set up NodeJS 20
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v5
       with:
         node-version: 20
     - name: Install development dependencies
@@ -109,7 +109,7 @@ jobs:
           echo "::set-output name=reporter::github-check"
         fi
     - name: Set up NodeJS ${{ matrix.node }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v5
       with:
         node-version: ${{ matrix.node }}
     - name: Install dependencies
@@ -134,7 +134,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: Set up NodeJS 20
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v5
       with:
         node-version: 20
     - name: Install dependencies
