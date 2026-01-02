@@ -56,10 +56,10 @@ jobs:
         else
           echo "::set-output name=reporter::github-check"
         fi
-    - name: Set up NodeJS 20
+    - name: Set up NodeJS 24
       uses: actions/setup-node@v6
       with:
-        node-version: 20
+        node-version: 24
     - name: Install dependencies
       run: npm ci
     - name: Run eslint with reviewdog
@@ -75,10 +75,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
-    - name: Set up NodeJS 20
+    - name: Set up NodeJS 24
       uses: actions/setup-node@v6
       with:
-        node-version: 20
+        node-version: 24
     - name: Install development dependencies
       run: npm ci
     - name: Build
@@ -117,7 +117,7 @@ jobs:
     - name: Run tests
       run: npm run test:cov
     - name: Upload coverage to Codecov
-      if: matrix.node == '20' && (github.event_name != 'push' || github.ref_type != 'tag' || !startsWith(github.ref_name, 'v'))
+      if: matrix.node == '24' && (github.event_name != 'push' || github.ref_type != 'tag' || !startsWith(github.ref_name, 'v'))
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -133,10 +133,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
-    - name: Set up NodeJS 20
+    - name: Set up NodeJS 24
       uses: actions/setup-node@v6
       with:
-        node-version: 20
+        node-version: 24
     - name: Install dependencies
       run: npm ci
     - name: Build package
