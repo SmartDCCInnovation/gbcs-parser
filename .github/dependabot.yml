@@ -17,3 +17,6 @@ updates:
     groups:
       typescript-eslint:
         patterns: ["@typescript-eslint/*"]
+    ignore:
+      - dependency-name: "@types/node"
+        versions: [ "25.x", "27.x", "29.x" ]
