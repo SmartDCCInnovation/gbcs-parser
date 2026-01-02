@@ -1,5 +1,9 @@
 name: Tests
 
+permissions:
+  id-token: write
+  contents: write
+
 on:
   push:
     branches:
@@ -137,6 +141,7 @@ jobs:
       uses: actions/setup-node@v6
       with:
         node-version: 24
+        registry-url: 'https://registry.npmjs.org'
     - name: Install dependencies
       run: npm ci
     - name: Build package
@@ -164,7 +169,5 @@ jobs:
         tag: ${{ github.ref }}
         overwrite: true
         body: "Release ${{ github.ref_name }}"
-    - uses: JS-DevTools/npm-publish@v4
-      with:
-        token: ${{ secrets.NPM_PUBLISH_TOKEN }}
-        access: public
+    - name: Publish to NPM
+      run: npm publish
