@@ -32,7 +32,7 @@ Additional features have been added, which include:
 
 ## Usage
 
-Please note, developed against `node 18` and makes use of its `crypto` api.
+Please note, developed against `node 24` and makes use of its `crypto` api.
 
 Install from `npm`:
 
