@@ -19,7 +19,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.10",
     "del-cli": "^7.0.0",
-    "eslint": "^9.9.0",
+    "eslint": "^10.0.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.1",
     "glob": "^13.0.0",
