@@ -22,7 +22,7 @@ jobs:
     name: Check Formatting
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Select reviewdog reporter
       id: get-reporter
       run: |
@@ -47,7 +47,7 @@ jobs:
     name: Check Static Errors
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Install reviewdog
       uses: reviewdog/action-setup@v1
       with:
@@ -78,7 +78,7 @@ jobs:
     name: Compile TypeScript
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Set up NodeJS 24
       uses: actions/setup-node@v6
       with:
@@ -99,7 +99,7 @@ jobs:
       matrix:
         node: [ 16, 18, 20, 22, 24 ]
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Install reviewdog
       uses: reviewdog/action-setup@v1
       with:
@@ -136,7 +136,7 @@ jobs:
     - test
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Set up NodeJS 24
       uses: actions/setup-node@v6
       with:
